@@ -1,6 +1,9 @@
-filepath = r"Version1\metro.txt"
+from pathlib import Path
 
-def read_metro_data(filepath):
+filepath = Path(__file__).parent.parent / "v1_text_files" / "metro.txt"
+filepath = filepath.resolve()
+
+def read_metro_data(filepath :str):
     start_line = 16
     with open(filepath, "r", encoding="utf-8") as f:
         vertices = []
@@ -34,7 +37,7 @@ def read_metro_data(filepath):
     
     return adjency_matrix, vertices, edges
     
-def dijkstra_algo_with_path(matrix, start):
+def dijkstra_algo_with_path(matrix :list, start: int):
     n = len(matrix)
     visited = [False] * n
     dist = [float('inf')] * n
@@ -61,36 +64,48 @@ def dijkstra_algo_with_path(matrix, start):
 
     return dist, prev
 
-def get_path(prev, target):
+def get_path(prev : list, target: int):
     path = []
     while target is not None:
         path.append(target)
         target = prev[target]
     return path[::-1]  
 
-def calculate_path_and_time(index_start, index_finish):
+def calculate_path_and_time(index_start: int, index_finish :int):
     matrix, vertices, edges = read_metro_data(filepath)
     dist, prev = dijkstra_algo_with_path(matrix, start=index_start)
+    
+    json_list_return ={}
+
+    json_list_return["total_time"]= f"{int(dist[index_finish]/60)} minutes and {dist[index_finish]%60} seconds"
+    json_list_return["stations"] = []
     target = index_finish 
     path = get_path(prev, target)
-    print(f"Trip time: {int(dist[target]/60)} minutes and {dist[target]%60} seconds")
-    line_to_take = []
-    print(path)
+    
     for station in path:
-        if line_to_take != vertices[station][3]:
-            line_to_take = vertices[station][3]
-            print(f"\nMetro {line_to_take}")
-
-        print(f"ID:{vertices[station][1]} Station: {vertices[station][2]}")
+        json_list_return["stations"].append({
+            "id": vertices[station][1],
+            "station": vertices[station][2],
+            "line": vertices[station][3]
+        })
+    return json_list_return
 
 def display_ids():
     matrix, vertices, edges = read_metro_data(filepath)
+    json_list_return = {}
+    json_list_return["stations"] = []
     for station in vertices:
-        print(f"ID:{station[1]} Station: {station[2]}")
+        json_list_return["stations"].append({
+            "id": station[1],
+            "station": station[2]
+        })
+    return json_list_return
 
 def display_specific_metro_stations(Metro_line):
     matrix, vertices, edges = read_metro_data(filepath)
-    print(f"Stations for Metro line : {Metro_line}")
+    json_list_return = {}
+    json_list_return["metro_line"] = Metro_line
+    
     metro_stations_list = []
     terminus_ids =[]
     for station in vertices:
@@ -98,5 +113,7 @@ def display_specific_metro_stations(Metro_line):
             metro_stations_list.append(station)
             if station[4] == "True":
                 terminus_ids.append(station[1]) 
-    calculate_path_and_time(int(terminus_ids[0]),int(terminus_ids[1]))
+    
+    json_list_return["stations"] = calculate_path_and_time(int(terminus_ids[0]),int(terminus_ids[1]))
+    return json_list_return
     
