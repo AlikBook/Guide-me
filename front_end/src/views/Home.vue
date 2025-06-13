@@ -5,8 +5,15 @@
     
     <input type="number" name="Station 2" id="" v-model="station2">
     <button @click="call_trip(station1,station2)">Test</button>
+    <p v-if="trip">Total time : {{ trip }}</p>
+    <ul v-if="trip && trip.stations">
+      <li v-for="station in trip.stations" :key="station.id">
+        {{ station.station }}
+      </li>
+    </ul>
 
-
+    <br>
+    <h1>All the station IDS</h1>
     <ul v-if="data && data.stations">
         <li v-for="item in data.stations" :key="item.id">
             ID: {{ item.id }} Station: {{ item.station }}
@@ -41,11 +48,11 @@ async function call_trip(value1, value2) {
     })
   });
   const trip_data = await res.json();
-  console.log(trip_data);
+  trip.value = trip_data;
 }
-
-const station1 = 0
-const station2 = 0
+var trip = ref(null);
+const station1 = 0;
+const station2 = 0;
 </script>
 
 <style>
