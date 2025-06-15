@@ -100,3 +100,7 @@ def display_specific_metro_stations(Metro_line):
                 terminus_ids.append(station[1]) 
     calculate_path_and_time(int(terminus_ids[0]),int(terminus_ids[1]))
     
+matrix = read_metro_data(filepath)[0]
+print("Adjacency Matrix:")
+for row in matrix:
+    print(row)
