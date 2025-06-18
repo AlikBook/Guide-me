@@ -5,11 +5,16 @@
     <input type="number" name="Station 2" id="" v-model="station2">
     <button @click="call_trip(station1,station2)">Test</button>
     <p v-if="trip">Total time : {{ trip }}</p>
-    <ul v-if="trip && trip.stations">
-      <li v-for="station in trip.stations" :key="station.id">
+   <ul v-if="trip && trip.stations">
+  <li v-for="lineObj in trip.stations" :key="Object.keys(lineObj)[0]">
+    <strong>{{ Object.keys(lineObj)[0] }}</strong>
+    <ul>
+      <li v-for="station in Object.values(lineObj)[0]" :key="station.id">
         {{ station.station }}
       </li>
     </ul>
+  </li>
+</ul>
 
     <br>
     <h1>All the station IDS</h1>
