@@ -1,7 +1,11 @@
 <template>
   <div>
     <h1>Metro app</h1>
+<<<<<<< frontend
+    <input type="number" name="Station a" id="" v-model="station1">
+=======
     <input type="number" name="Station 1" id="" v-model="station1">
+>>>>>>> main
     
     <input type="number" name="Station 2" id="" v-model="station2">
     <button @click="call_trip(station1,station2)">Test</button>
