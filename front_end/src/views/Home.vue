@@ -1,8 +1,10 @@
 <template>
   <div>
     <h1>Metro app</h1>
+
     <input type="number" name="Station 1" id="" v-model="station1">
-    
+
+  
     <input type="number" name="Station 2" id="" v-model="station2">
     <button @click="call_trip(station1,station2)">Test</button>
     <p v-if="trip">Total time : {{ trip }}</p>
