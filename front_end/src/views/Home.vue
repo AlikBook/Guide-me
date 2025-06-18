@@ -7,15 +7,13 @@
 
     <p v-if="trip && trip.total_time">Total time : {{ trip.total_time }}</p>
 
-    <!-- Affichage style Google Maps -->
     <div v-if="trip && trip.stations" class="map-container">
       <div
         v-for="lineObj in trip.stations"
         :key="Object.keys(lineObj)[0]"
         class="line-section line-visual"
         :class="getLineClass(Object.keys(lineObj)[0])"
-        :style="{ '--line-color' : getColorCode(Object.keys(lineObj)[0]) }"
-
+        :style="{ '--line-color': getColorCode(Object.keys(lineObj)[0]) }"
       >
         <h3 class="line-name">{{ Object.keys(lineObj)[0] }}</h3>
         <div class="line-track">
@@ -51,60 +49,62 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted } from 'vue';
 
-const data = ref(null)
-const station1 = ref(0)
-const station2 = ref(0)
-const trip = ref(null)
+const data = ref(null);
+const station1 = ref(0);
+const station2 = ref(0);
+const trip = ref(null);
 
 onMounted(async () => {
-  const response = await fetch('http://127.0.0.1:8000/station_ids')
-  data.value = await response.json()
-})
+  const response = await fetch("http://127.0.0.1:8000/station_ids");
+  data.value = await response.json();
+});
 
 async function call_trip(value1, value2) {
-  const res = await fetch('http://127.0.0.1:8000/calculate_trip', {
-    method: 'POST',
+  const res = await fetch("http://127.0.0.1:8000/calculate_trip", {
+    method: "POST",
     headers: {
-      'Content-Type': 'application/json'
+      "Content-Type": "application/json",
     },
-    body: JSON.stringify({ start: value1, end: value2 })
-  })
-  trip.value = await res.json()
+    body: JSON.stringify({ start: value1, end: value2 }),
+  });
+  trip.value = await res.json();
 }
 
 function getLineClass(lineName) {
-  return lineName.replace(/\s+/g, '-').toLowerCase()
+  return lineName.replace(/\s+/g, '-').toLowerCase();
 }
 
 function getColorCode(lineName) {
-  const normalized = lineName.trim().toLowerCase().replace(/\s+/g, '-')
+  const normalized = lineName.trim().toLowerCase().replace(/\s+/g, '-');
   const colors = {
-    'metro-1': '#FFD700',
-    'metro-2': '#0055C0',
-    'metro-3': '#9FC93C',
-    'metro-4': '#8B008B',
-    'metro-5': '#FF5C5C',
-    'metro-6': '#32CD32',
-    'metro-7': '#FF8C00',
-    'metro-8': '#800000',
-    'metro-9': '#E9967A',
-    'metro-10': '#4682B4',
-    'metro-11': '#DAA520',
-    'metro-12': '#556B2F',
-    'metro-13': '#1E90FF',
-    'metro-14': '#9400D3'
-  }
-  return colors[normalized] || '#000'
+    'metro-1': '#21A1E1',
+    'metro-2': '#F2A201',
+    'metro-3': '#BBD63D',
+    'metro-3bis': '#89C1E4',
+    'metro-4': '#BB60A5',
+    'metro-5': '#F16745',
+    'metro-6': '#7EB26D',
+    'metro-7': '#B69FD3',
+    'metro-7bis': '#E15792',
+    'metro-8': '#E05574',
+    'metro-9': '#CDC06B',
+    'metro-10': '#DFA13B',
+    'metro-11': '#90713C',
+    'metro-12': '#3C968F',
+    'metro-13': '#4C7BC6',
+    'metro-14': '#A04F9E'
+  };
+  return colors[normalized] || '#000';
 }
 
 function isFirstStation(lineObj, index) {
-  return index === 0
+  return index === 0;
 }
 
 function isLastStation(lineObj, index) {
-  return index === Object.values(lineObj)[0].length - 1
+  return index === Object.values(lineObj)[0].length - 1;
 }
 </script>
 
@@ -144,7 +144,6 @@ function isLastStation(lineObj, index) {
   border-radius: 2px;
   z-index: 1;
 }
-
 
 .station-entry {
   position: relative;
