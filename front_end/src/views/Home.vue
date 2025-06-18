@@ -34,6 +34,9 @@
 import { ref, onMounted } from 'vue'
 
 const data = ref(null)
+const station1 = ref(0)
+const station2 = ref(0)
+const trip = ref(null)
 
 onMounted(async () => {
   const response = await fetch('http://127.0.0.1:8000/station_ids')
@@ -54,9 +57,6 @@ async function call_trip(value1, value2) {
   const trip_data = await res.json();
   trip.value = trip_data;
 }
-var trip = ref(null);
-const station1 = 0;
-const station2 = 0;
 </script>
 
 <style>
