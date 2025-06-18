@@ -1,9 +1,11 @@
 <script setup>
 import Menu from './components/menu.vue'
+import MetroMap from './components/MetroMap.vue'
 </script>
 
 <template>
   <Menu></Menu>
+  <MetroMap />
   <router-view></router-view>
   
 </template>
