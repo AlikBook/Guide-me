@@ -11,17 +11,13 @@
         @blur="hideSuggestions(1)"
         placeholder="Rechercher station départ..."
       />
-      <ul
-        v-if="showSuggestions1 && filteredStations1.length"
-        class="suggestions"
-      >
+      <ul v-if="showSuggestions1 && filteredStations1.length" class="suggestions">
         <li
           v-for="station in filteredStations1"
           :key="'departure-' + station.id"
           @mousedown="selectStation(station, 1)"
         >
-          {{ station.station }} (ID: {{ station.id }}, Ligne:
-          {{ station.line }})
+          {{ station.station }} (ID: {{ station.id }}, Ligne: {{ station.line }})
         </li>
       </ul>
     </div>
@@ -35,16 +31,13 @@
         @blur="hideSuggestions(2)"
         placeholder="Rechercher station arrivée..."
       />
-      <ul
-        v-if="showSuggestions2 && filteredStations2.length"
-        class="suggestions"
-      >
+      <ul v-if="showSuggestions2 && filteredStations2.length" class="suggestions">
         <li
           v-for="station in filteredStations2"
           :key="'arrival-' + station.id"
           @mousedown="selectStation(station, 2)"
         >
-          {{ station.station }} (ID: {{ station.id }})
+          {{ station.station }} (ID: {{ station.id }}, Ligne: {{ station. }})
         </li>
       </ul>
     </div>
@@ -55,7 +48,7 @@
 
     <div v-if="trip && trip.stations" class="map-container">
       <div
-        v-for="lineObj in trip.stations"
+        v-for="lineObj in cleanedTrip"
         :key="Object.keys(lineObj)[0]"
         class="line-section line-visual"
         :class="getLineClass(Object.keys(lineObj)[0])"
@@ -221,6 +214,48 @@ function isFirstStation(lineObj, index) {
 function isLastStation(lineObj, index) {
   return index === Object.values(lineObj)[0].length - 1;
 }
+
+const cleanedTrip = computed(() => {
+  if (!trip.value || !trip.value.stations) return [];
+
+  const cleaned = [];
+  const stations = trip.value.stations;
+
+  for (let i = 0; i < stations.length; i++) {
+    const current = stations[i];
+    const currentLine = Object.values(current)[0];
+
+    const isSingleStation = currentLine.length === 1;
+    const stationName = currentLine[0].station;
+
+    const prev = stations[i - 1];
+    const next = stations[i + 1];
+
+    const prevStations = prev ? Object.values(prev)[0] : null;
+    const nextStations = next ? Object.values(next)[0] : null;
+
+    const prevEnd =
+      prevStations && prevStations.length
+        ? prevStations[prevStations.length - 1].station
+        : null;
+
+    const nextStart =
+      nextStations && nextStations.length
+        ? nextStations[0].station
+        : null;
+
+    if (
+      isSingleStation &&
+      (stationName === prevEnd || stationName === nextStart)
+    ) {
+      continue;
+    }
+
+    cleaned.push(current);
+  }
+
+  return cleaned;
+});
 </script>
 
 <style>
