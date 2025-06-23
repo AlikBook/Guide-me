@@ -37,7 +37,7 @@
           :key="'arrival-' + station.id"
           @mousedown="selectStation(station, 2)"
         >
-          {{ station.station }} (ID: {{ station.id }}, Ligne: {{ station. }})
+          {{ station.station }} (ID: {{ station.id }}, Ligne: {{ station.line }})
         </li>
       </ul>
     </div>
