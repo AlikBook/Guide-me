@@ -29,11 +29,13 @@ def read_metro_data(filepath :str):
                     edges.append(line_to_add)
     n = len(vertices)
     adjency_matrix = [[0 for _ in range(n)] for _ in range(n)]
+    edges_not_symetric = ((145,373),(201,145),(259,36),(36,198),(34,248),(248,280),(280,92),(92,34))
 
     for edge in edges:        
         i, j, w = int(edge[1]), int(edge[2]), int(edge[3])
         adjency_matrix[i][j] = w
-        adjency_matrix[j][i] = w 
+        if (i,j) not in edges_not_symetric:
+            adjency_matrix[j][i] = w 
     
     return adjency_matrix, vertices, edges
     
