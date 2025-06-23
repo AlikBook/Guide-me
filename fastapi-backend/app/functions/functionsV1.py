@@ -107,7 +107,8 @@ def display_ids():
     for station in vertices:
         json_list_return["stations"].append({
             "id": station[1],
-            "station": station[2]
+            "station": station[2],
+            "line": station[3]
         })
     return json_list_return
 
