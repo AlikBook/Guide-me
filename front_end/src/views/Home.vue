@@ -116,6 +116,14 @@ function isLastStation(lineObj, index) {
 
 .map-container {
   margin-top: 30px;
+  border: 4px solid rgb(85, 30, 10);
+  border-radius: 50px;
+  margin-left: 8%;
+  margin-right: 65%;
+  padding-left: 5%;
+  padding-top: 3%;
+  font-family: Arial, Helvetica, sans-serif;
+  background-color: rgb(221, 230, 230);
 }
 
 .line-section {
