@@ -287,14 +287,15 @@ function hideSuggestions(field) {
 function selectStation(station, field) {
   if (field === 1) {
     station1.value = station.id;
-    station1Input.value = station.station;
+    station1Input.value = `${station.station} (Ligne: ${station.line})`;
     showSuggestions1.value = false;
   } else {
     station2.value = station.id;
-    station2Input.value = station.station;
+    station2Input.value = `${station.station} (Ligne: ${station.line})`;
     showSuggestions2.value = false;
   }
 }
+
 
 function getLastStation(lineObj) {
   const stations = Object.values(lineObj)[0];
