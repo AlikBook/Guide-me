@@ -1,0 +1,58 @@
+.ratp_metro {
+  width: 500px;
+  margin-top: 30px;
+}
+
+.map-container {
+  margin-top: 30px;
+}
+
+.line-section {
+  margin-bottom: 40px;
+}
+
+.station-path {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.station-dot {
+  display: flex;
+  align-items: center;
+  margin-bottom: 5px;
+  transition: all 0.3s ease;
+  flex-shrink: 0;
+}
+
+.dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  margin-right: 5px;
+}
+
+.connector {
+  width: 30px;
+  height: 2px;
+  background-color: #666;
+  margin: 0 5px;
+}
+
+.station-name {
+  font-size: 14px;
+  font-weight: 500;
+  margin-right: 10px;
+  transition: 0.2s;
+}
+
+.station-name:hover {
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+h3 {
+  margin-bottom: 10px;
+}
