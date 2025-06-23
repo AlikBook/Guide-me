@@ -17,7 +17,7 @@
           :key="'departure-' + station.id"
           @mousedown="selectStation(station, 1)"
         >
-          {{ station.station }} (ID: {{ station.id }}, Ligne: {{ station.line }})
+          {{ station.station }} ID: {{ station.id }}, Ligne: {{ station.line }}
         </li>
       </ul>
     </div>
@@ -78,7 +78,7 @@
     <h1>All the station IDS</h1>
     <ul v-if="data && data.stations">
       <li v-for="item in data.stations" :key="item.id">
-        ID: {{ item.id }} Station: {{ item.station }}
+        ID: {{ item.id }} Station: {{ item.station }} line: {{ item.line }}
       </li>
     </ul>
     <div v-else>Loading...</div>
@@ -104,16 +104,8 @@ onMounted(async () => {
   const response = await fetch("http://127.0.0.1:8000/station_ids");
   const result = await response.json();
   data.value = result;
-  allStations.value = result.stations.map((station) => ({
-    ...station,
-    line: extractLineNumber(station.station),
-  }));
+  allStations.value = result.stations;
 });
-
-function extractLineNumber(stationName) {
-  const match = stationName.match(/;\d+/);
-  return match ? match[0].replace(";", "") : "?";
-}
 
 const filteredStations1 = computed(() => {
   if (!station1Input.value) return [];
@@ -160,11 +152,11 @@ function hideSuggestions(field) {
 function selectStation(station, field) {
   if (field === 1) {
     station1.value = station.id;
-    station1Input.value = `${station.station} (ID: ${station.id})`;
+    station1Input.value = `${station.station} (Ligne: ${station.line})`;
     showSuggestions1.value = false;
   } else {
     station2.value = station.id;
-    station2Input.value = `${station.station} (ID: ${station.id})`;
+    station2Input.value = `${station.station} (Ligne: ${station.ligne})`;
     showSuggestions2.value = false;
   }
 }
