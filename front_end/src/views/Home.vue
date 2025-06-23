@@ -1,9 +1,55 @@
 <template>
   <div>
     <h1>Metro app</h1>
-    <input type="number" v-model="station1" placeholder="ID station départ">
-    <input type="number" v-model="station2" placeholder="ID station arrivée">
-    <button @click="call_trip(station1, station2)">Test</button>
+
+    <div class="search-container">
+      <input
+        type="text"
+        v-model="station1Input"
+        @input="filterStations(1)"
+        @focus="showSuggestions1 = true"
+        @blur="hideSuggestions(1)"
+        placeholder="Rechercher station départ..."
+      />
+      <ul
+        v-if="showSuggestions1 && filteredStations1.length"
+        class="suggestions"
+      >
+        <li
+          v-for="station in filteredStations1"
+          :key="'departure-' + station.id"
+          @mousedown="selectStation(station, 1)"
+        >
+          {{ station.station }} (ID: {{ station.id }}, Ligne:
+          {{ station.line }})
+        </li>
+      </ul>
+    </div>
+
+    <div class="search-container">
+      <input
+        type="text"
+        v-model="station2Input"
+        @input="filterStations(2)"
+        @focus="showSuggestions2 = true"
+        @blur="hideSuggestions(2)"
+        placeholder="Rechercher station arrivée..."
+      />
+      <ul
+        v-if="showSuggestions2 && filteredStations2.length"
+        class="suggestions"
+      >
+        <li
+          v-for="station in filteredStations2"
+          :key="'arrival-' + station.id"
+          @mousedown="selectStation(station, 2)"
+        >
+          {{ station.station }} (ID: {{ station.id }})
+        </li>
+      </ul>
+    </div>
+
+    <button @click="call_trip(station1, station2)">Calculer trajet</button>
 
     <p v-if="trip && trip.total_time">Total time : {{ trip.total_time }}</p>
 
@@ -26,7 +72,7 @@
               class="circle"
               :class="{
                 start: isFirstStation(lineObj, index),
-                end: isLastStation(lineObj, index)
+                end: isLastStation(lineObj, index),
               }"
             ></div>
             <span class="station-label">{{ station.station }}</span>
@@ -44,22 +90,91 @@
     </ul>
     <div v-else>Loading...</div>
 
-    <img class="ratp_metro" src="/metrof_r.png" alt="Plan métro">
+    <img class="ratp_metro" src="/metrof_r.png" alt="Plan métro" />
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from "vue";
 
 const data = ref(null);
 const station1 = ref(0);
 const station2 = ref(0);
+const station1Input = ref("");
+const station2Input = ref("");
 const trip = ref(null);
+const showSuggestions1 = ref(false);
+const showSuggestions2 = ref(false);
+const allStations = ref([]);
 
 onMounted(async () => {
   const response = await fetch("http://127.0.0.1:8000/station_ids");
-  data.value = await response.json();
+  const result = await response.json();
+  data.value = result;
+  allStations.value = result.stations.map((station) => ({
+    ...station,
+    line: extractLineNumber(station.station),
+  }));
 });
+
+function extractLineNumber(stationName) {
+  const match = stationName.match(/;\d+/);
+  return match ? match[0].replace(";", "") : "?";
+}
+
+const filteredStations1 = computed(() => {
+  if (!station1Input.value) return [];
+  const query = station1Input.value.toLowerCase();
+  return allStations.value
+    .filter(
+      (station) =>
+        station.station.toLowerCase().includes(query) ||
+        station.id.toString().includes(query)
+    )
+    .slice(0, 10);
+});
+
+const filteredStations2 = computed(() => {
+  if (!station2Input.value) return [];
+  const query = station2Input.value.toLowerCase();
+  return allStations.value
+    .filter(
+      (station) =>
+        station.station.toLowerCase().includes(query) ||
+        station.id.toString().includes(query)
+    )
+    .slice(0, 10);
+});
+
+function filterStations(field) {
+  if (field === 1) {
+    showSuggestions1.value = !!station1Input.value;
+  } else {
+    showSuggestions2.value = !!station2Input.value;
+  }
+}
+
+function hideSuggestions(field) {
+  setTimeout(() => {
+    if (field === 1) {
+      showSuggestions1.value = false;
+    } else {
+      showSuggestions2.value = false;
+    }
+  }, 200);
+}
+
+function selectStation(station, field) {
+  if (field === 1) {
+    station1.value = station.id;
+    station1Input.value = `${station.station} (ID: ${station.id})`;
+    showSuggestions1.value = false;
+  } else {
+    station2.value = station.id;
+    station2Input.value = `${station.station} (ID: ${station.id})`;
+    showSuggestions2.value = false;
+  }
+}
 
 async function call_trip(value1, value2) {
   const res = await fetch("http://127.0.0.1:8000/calculate_trip", {
@@ -73,30 +188,30 @@ async function call_trip(value1, value2) {
 }
 
 function getLineClass(lineName) {
-  return lineName.replace(/\s+/g, '-').toLowerCase();
+  return lineName.replace(/\s+/g, "-").toLowerCase();
 }
 
 function getColorCode(lineName) {
-  const normalized = lineName.trim().toLowerCase().replace(/\s+/g, '-');
+  const normalized = lineName.trim().toLowerCase().replace(/\s+/g, "-");
   const colors = {
-    'metro-1': '#21A1E1',
-    'metro-2': '#F2A201',
-    'metro-3': '#BBD63D',
-    'metro-3bis': '#89C1E4',
-    'metro-4': '#BB60A5',
-    'metro-5': '#F16745',
-    'metro-6': '#7EB26D',
-    'metro-7': '#B69FD3',
-    'metro-7bis': '#E15792',
-    'metro-8': '#E05574',
-    'metro-9': '#CDC06B',
-    'metro-10': '#DFA13B',
-    'metro-11': '#90713C',
-    'metro-12': '#3C968F',
-    'metro-13': '#4C7BC6',
-    'metro-14': '#A04F9E'
+    "metro-1": "#21A1E1",
+    "metro-2": "#F2A201",
+    "metro-3": "#BBD63D",
+    "metro-3bis": "#89C1E4",
+    "metro-4": "#BB60A5",
+    "metro-5": "#F16745",
+    "metro-6": "#7EB26D",
+    "metro-7": "#B69FD3",
+    "metro-7bis": "#E15792",
+    "metro-8": "#E05574",
+    "metro-9": "#CDC06B",
+    "metro-10": "#DFA13B",
+    "metro-11": "#90713C",
+    "metro-12": "#3C968F",
+    "metro-13": "#4C7BC6",
+    "metro-14": "#A04F9E",
   };
-  return colors[normalized] || '#000';
+  return colors[normalized] || "#000";
 }
 
 function isFirstStation(lineObj, index) {
@@ -134,7 +249,7 @@ function isLastStation(lineObj, index) {
 }
 
 .line-track::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   bottom: 0;
@@ -172,5 +287,59 @@ function isLastStation(lineObj, index) {
 .station-label {
   font-size: 14px;
   color: #111;
+}
+
+.search-container {
+  position: relative;
+  margin-bottom: 15px;
+  width: 300px;
+}
+
+.search-container input {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.suggestions {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.suggestions li {
+  padding: 8px;
+  cursor: pointer;
+  border-bottom: 1px solid #eee;
+}
+
+.suggestions li:hover {
+  background-color: #f5f5f5;
+}
+
+button {
+  padding: 8px 16px;
+  background-color: #4caf50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-top: 10px;
+}
+
+button:hover {
+  background-color: #45a049;
 }
 </style>
