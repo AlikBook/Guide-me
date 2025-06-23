@@ -1,4 +1,4 @@
-filepath = r"Version1\metro.txt"
+filepath = r"Version1/metro.txt"
 
 def read_metro_data(filepath):
     start_line = 16
@@ -33,7 +33,56 @@ def read_metro_data(filepath):
         adjency_matrix[j][i] = w 
     
     return adjency_matrix, vertices, edges
-    
+
+def is_connected(adjency_matrix):
+    n = len(adjency_matrix)
+    visited = [False] * n
+
+    def dfs(node):
+        visited[node] = True
+        for neighbor in range(n):
+            if adjency_matrix[node][neighbor] != 0 and not visited[neighbor]:
+                dfs(neighbor)
+
+    # Démarrer le DFS depuis le sommet 0
+    dfs(0)
+
+    return all(visited)
+
+import heapq
+# arborescence
+def prim_mst(adjency_matrix):
+    n = len(adjency_matrix)
+    visited = [False] * n
+    min_heap = []
+    mst_edges = []
+    total_cost = 0
+
+    # Commencer depuis le sommet 0
+    visited[0] = True
+    for neighbor in range(n):
+        if adjency_matrix[0][neighbor] != 0:
+            heapq.heappush(min_heap, (adjency_matrix[0][neighbor], 0, neighbor))  # (poids, from, to)
+
+    while min_heap and len(mst_edges) < n - 1:
+        weight, u, v = heapq.heappop(min_heap)
+        if not visited[v]:
+            visited[v] = True
+            mst_edges.append((u, v, weight))
+            total_cost += weight
+
+            for neighbor in range(n):
+                if adjency_matrix[v][neighbor] != 0 and not visited[neighbor]:
+                    heapq.heappush(min_heap, (adjency_matrix[v][neighbor], v, neighbor))
+
+    # Vérification finale : tous les sommets ont été atteints ?
+    if len(mst_edges) != n - 1:
+        print("❌ Le graphe n'est pas connexe, MST impossible.")
+        return None, None
+
+    return total_cost, mst_edges
+
+
 def dijkstra_algo_with_path(matrix, start):
     n = len(matrix)
     visited = [False] * n
@@ -99,4 +148,7 @@ def display_specific_metro_stations(Metro_line):
             if station[4] == "True":
                 terminus_ids.append(station[1]) 
     calculate_path_and_time(int(terminus_ids[0]),int(terminus_ids[1]))
+
+    
+
     
