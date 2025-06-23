@@ -156,10 +156,11 @@ function selectStation(station, field) {
     showSuggestions1.value = false;
   } else {
     station2.value = station.id;
-    station2Input.value = `${station.station} (Ligne: ${station.ligne})`;
+    station2Input.value = `${station.station} (Ligne: ${station.line})`; 
     showSuggestions2.value = false;
   }
 }
+
 
 async function call_trip(value1, value2) {
   const res = await fetch("http://127.0.0.1:8000/calculate_trip", {
