@@ -1,8 +1,12 @@
 <template>
   <div class="app-container">
-    <header class="app-header">
-      <h1 class="app-title">Guide Me</h1>
+    <header class="app-header glass-header">
+      <div class="header-content">
+        <img src="/Logo.png" alt="Logo" class="logo" />
+        <h1 class="app-title">Guide <span class="highlight">Me</span></h1>
+      </div>
     </header>
+
 
     <main class="main-content">
       <div class="layout-container">
@@ -10,80 +14,91 @@
         <div class="results-column">
           <div class="search-section">
             <div class="search-card">
-              <div class="search-input-container">
-                <div class="search-icon">
-                  <svg viewBox="0 0 24 24" width="20" height="20">
-                    <path
-                      fill="currentColor"
-                      d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 0 0 1.48-5.34c-.47-2.78-2.79-5-5.59-5.34a6.505 6.505 0 0 0-7.27 7.27c.34 2.8 2.56 5.12 5.34 5.59a6.5 6.5 0 0 0 5.34-1.48l.27.28v.79l4.25 4.25c.41.41 1.08.41 1.49 0 .41-.41.41-1.08 0-1.49L15.5 14zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"
-                    />
-                  </svg>
-                </div>
-                <input
-                  type="text"
-                  v-model="station1Input"
-                  @input="filterStations(1)"
-                  @focus="showSuggestions1 = true"
-                  @blur="hideSuggestions(1)"
-                  placeholder="Départ : Nom ou ID de station"
-                  class="search-input"
-                />
-                <ul
-                  v-if="showSuggestions1 && filteredStations1.length"
-                  class="suggestions-dropdown"
-                >
-                  <li
-                    v-for="station in filteredStations1"
-                    :key="'departure-' + station.id"
-                    @mousedown="selectStation(station, 1)"
-                    class="suggestion-item"
+              <div class="search-row-with-swap">
+                <div class="search-input-container">
+                  <div class="search-icon">
+                    <svg viewBox="0 0 24 24" width="20" height="20">
+                      <path
+                        fill="currentColor"
+                        d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 0 0 1.48-5.34c-.47-2.78-2.79-5-5.59-5.34a6.505 6.505 0 0 0-7.27 7.27c.34 2.8 2.56 5.12 5.34 5.59a6.5 6.5 0 0 0 5.34-1.48l.27.28v.79l4.25 4.25c.41.41 1.08.41 1.49 0 .41-.41.41-1.08 0-1.49L15.5 14zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"
+                      />
+                    </svg>
+                  </div>
+                  <input
+                    type="text"
+                    v-model="station1Input"
+                    @input="filterStations(1)"
+                    @focus="showSuggestions1 = true"
+                    @blur="hideSuggestions(1)"
+                    placeholder="Départ : Nom ou ID de station"
+                    class="search-input"
+                  />
+                  <ul
+                    v-if="showSuggestions1 && filteredStations1.length"
+                    class="suggestions-dropdown"
                   >
-                    <div class="station-info">
-                      <span class="station-name">{{ station.station }}</span>
-                      <span class="station-meta"
-                        >ID: {{ station.id }} • Ligne {{ station.line }}</span
-                      >
-                    </div>
-                  </li>
-                </ul>
-              </div>
+                    <li
+                      v-for="station in filteredStations1"
+                      :key="'departure-' + station.id"
+                      @mousedown="selectStation(station, 1)"
+                      class="suggestion-item"
+                    >
+                      <div class="station-info">
+                        <span class="station-name">{{ station.station }}</span>
+                        <span class="station-meta"
+                          >ID: {{ station.id }} • Ligne {{ station.line }}</span
+                        >
+                      </div>
+                    </li>
+                  </ul>
+                </div>
 
-              <div class="search-input-container">
-                <div class="search-icon">
+                <button class="swap-button" @click="swapStations" title="Inverser">
                   <svg viewBox="0 0 24 24" width="20" height="20">
                     <path
                       fill="currentColor"
-                      d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"
+                      d="M4,9V5h14.17l-3.59-3.59L16,0l6,6l-6,6l-1.41-1.41L18.17,9H4zm16,6v4H5.83l3.58,3.59L8,24l-6-6l6-6l1.41,1.41L5.83,15H20z"
                     />
                   </svg>
-                </div>
-                <input
-                  type="text"
-                  v-model="station2Input"
-                  @input="filterStations(2)"
-                  @focus="showSuggestions2 = true"
-                  @blur="hideSuggestions(2)"
-                  placeholder="Arrivée : Nom ou ID de station"
-                  class="search-input"
-                />
-                <ul
-                  v-if="showSuggestions2 && filteredStations2.length"
-                  class="suggestions-dropdown"
-                >
-                  <li
-                    v-for="station in filteredStations2"
-                    :key="'arrival-' + station.id"
-                    @mousedown="selectStation(station, 2)"
-                    class="suggestion-item"
+                </button>
+
+                <div class="search-input-container">
+                  <div class="search-icon-arrivée">
+                    <svg viewBox="0 0 24 24" width="20" height="20">
+                      <path
+                        fill="currentColor"
+                        d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"
+                      />
+                    </svg>
+                  </div>
+                  <input
+                    type="text"
+                    v-model="station2Input"
+                    @input="filterStations(2)"
+                    @focus="showSuggestions2 = true"
+                    @blur="hideSuggestions(2)"
+                    placeholder="Arrivée : Nom ou ID de station"
+                    class="search-input"
+                  />
+                  <ul
+                    v-if="showSuggestions2 && filteredStations2.length"
+                    class="suggestions-dropdown"
                   >
-                    <div class="station-info">
-                      <span class="station-name">{{ station.station }}</span>
-                      <span class="station-meta"
-                        >ID: {{ station.id }} • Ligne {{ station.line }}</span
-                      >
-                    </div>
-                  </li>
-                </ul>
+                    <li
+                      v-for="station in filteredStations2"
+                      :key="'arrival-' + station.id"
+                      @mousedown="selectStation(station, 2)"
+                      class="suggestion-item"
+                    >
+                      <div class="station-info">
+                        <span class="station-name">{{ station.station }}</span>
+                        <span class="station-meta"
+                          >ID: {{ station.id }} • Ligne {{ station.line }}</span
+                        >
+                      </div>
+                    </li>
+                  </ul>
+                </div>
               </div>
 
               <button
@@ -101,6 +116,7 @@
               </button>
             </div>
           </div>
+          
 
           <div v-if="trip && trip.total_time" class="trip-summary">
             <div class="time-badge">
@@ -114,7 +130,11 @@
                   d="M12.5 7H11v6l5.25 3.15.75-1.23-4.5-2.67z"
                 />
               </svg>
-              <span>Temps estimé : {{ trip.total_time }} minutes</span>
+              <span>Temps estimé : {{ trip.total_time }}</span>
+            </div>
+            <div class="trip-stats">
+              <span>{{ journeyStats.totalStations }} stations</span> •
+              <span>{{ journeyStats.changes }} changement{{ journeyStats.changes > 1 ? 's' : '' }}</span>
             </div>
           </div>
 
@@ -146,7 +166,8 @@
                   <div
                     v-for="(station, index) in Object.values(lineObj)[0]"
                     :key="station.id"
-                    class="station-item"
+                    :class="['station-item', { 'station-animated': animatedStations.has(station.id) }]"
+                    :style="animatedStations.has(station.id) ? { '--glow-color': getColorCode(Object.keys(lineObj)[0]) } : {}"
                   >
                     <div class="station-marker-container">
                       <div
@@ -250,6 +271,25 @@ const filteredStations2 = computed(() => {
     .slice(0, 5);
 });
 
+const journeyStats = computed(() => {
+  if (!trip.value || !trip.value.stations) return { totalStations: 0, changes: 0 };
+
+  const stationSet = new Set();
+
+  trip.value.stations.forEach((lineObj) => {
+    const stations = Object.values(lineObj)[0];
+    stations.forEach((station) => {
+      stationSet.add(station.id);
+    });
+  });
+
+  const totalStations = stationSet.size;
+  const changes = trip.value.stations.length - 1;
+
+  return { totalStations, changes };
+});
+
+
 function filterStations(field) {
   if (field === 1) {
     showSuggestions1.value = !!station1Input.value;
@@ -295,6 +335,7 @@ async function call_trip(value1, value2) {
     body: JSON.stringify({ start: value1, end: value2 }),
   });
   trip.value = await res.json();
+  startJourneyAnimation();
 }
 
 function getColorCode(lineName) {
@@ -319,6 +360,18 @@ function getColorCode(lineName) {
   };
   return colors[normalized] || "#000";
 }
+
+function swapStations() {
+  const tempId = station1.value;
+  const tempInput = station1Input.value;
+
+  station1.value = station2.value;
+  station1Input.value = station2Input.value;
+
+  station2.value = tempId;
+  station2Input.value = tempInput;
+}
+
 
 const cleanedTrip = computed(() => {
   if (!trip.value || !trip.value.stations) return [];
@@ -359,15 +412,34 @@ const cleanedTrip = computed(() => {
 
   return cleaned;
 });
+
+const animatedStations = ref(new Set());
+
+function startJourneyAnimation() {
+  animatedStations.value.clear();
+  let delay = 0;
+
+  cleanedTrip.value.forEach((lineObj) => {
+    const stations = Object.values(lineObj)[0];
+
+    stations.forEach((station) => {
+      setTimeout(() => {
+        animatedStations.value.add(station.id);
+      }, delay);
+      delay += 500;
+    });
+  });
+}
+
 </script>
 
 <style>
 :root {
   --primary-color: #2f2f7e;
   --secondary-color: #ff5a5f;
-  --text-color: #333;
-  --light-text: #666;
-  --border-color: #e0e0e0;
+  --text-color: #000000;
+  --light-text: #242323;
+  --border-color: #696969;
   --background-light: #f8f9fa;
   --card-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
@@ -387,22 +459,9 @@ body {
 }
 
 .app-container {
-  max-width: 1200px;
+  max-width: 1300px;
   margin: 0 auto;
   padding: 0 20px;
-}
-
-.app-header {
-  padding: 20px 0;
-  text-align: center;
-  border-bottom: 1px solid var(--border-color);
-  margin-bottom: 20px;
-}
-
-.app-title {
-  font-size: 24px;
-  font-weight: 700;
-  color: var(--primary-color);
 }
 
 .layout-container {
@@ -434,12 +493,6 @@ body {
   margin-bottom: 24px;
 }
 
-.search-card {
-  background: white;
-  border-radius: 12px;
-  padding: 16px;
-  box-shadow: var(--card-shadow);
-}
 
 .search-input-container {
   position: relative;
@@ -451,14 +504,22 @@ body {
   left: 12px;
   top: 50%;
   transform: translateY(-50%);
-  color: var(--light-text);
+  color: var(--light-text );
+}
+
+.search-icon-arrivée{
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: red;
 }
 
 .search-input {
   width: 100%;
   padding: 12px 16px 12px 40px;
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
+  border: 3px solid var(--border-color);
+  border-radius: 20px;
   font-size: 16px;
   transition: border-color 0.2s;
 }
@@ -563,10 +624,14 @@ body {
 }
 
 .journey-card {
-  background: white;
-  border-radius: 12px;
-  padding: 16px;
-  box-shadow: var(--card-shadow);
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  padding-top: 20px;
+  padding-right: 30px;
 }
 
 .line-section {
@@ -688,4 +753,112 @@ body {
     position: static;
   }
 }
+
+.trip-stats {
+  margin-top: 8px;
+  font-size: 14px;
+  color: var(--light-text);
+}
+
+.swap-button {
+  position: absolute;
+  left: 90%;
+  top: 50%;
+  transform: translate(-10%, -70%);
+  background-color: white;
+  border: 2px solid var(--primary-color);
+  color: var(--primary-color);
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 20;
+  box-shadow: var(--card-shadow);
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.swap-button:hover {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.search-row-with-swap {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  position: relative;
+}
+
+.station-animated .station-marker {
+  box-shadow: 0 0 8px 3px var(--glow-color);
+  transition: box-shadow 0.3s ease;
+}
+
+.station-animated .station-name {
+  color: var(--glow-color);
+  font-weight: bold;
+  transition: color 0.3s ease;
+}
+
+.station-animated .station-marker {
+  animation: glow-pulse 1.5s ease-in-out infinite alternate;
+}
+
+@keyframes glow-pulse {
+  from {
+    box-shadow: 0 0 4px 2px var(--glow-color);
+  }
+  to {
+    box-shadow: 0 0 10px 5px var(--glow-color);
+  }
+}
+
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 999;
+  padding: 20px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.glass-header {
+  background: #2f2f7e;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+  border-radius: 20px;
+  margin-bottom: 5%;
+  margin-top: 3%;
+}
+
+.header-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  background-color:#2f2f7e;
+  border-radius: 20px;
+}
+
+.logo {
+  height: 100px;
+  width: 100px;
+  object-fit: contain;
+}
+
+.app-title {
+  font-size: 40px;
+  font-weight: 700;
+  color: white;
+  letter-spacing: 1px;
+}
+
+.highlight {
+  color: #ffd700; /* jaune doré pour "Me", tu peux changer */
+}
+
 </style>
