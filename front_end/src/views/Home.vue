@@ -1,7 +1,7 @@
 <template>
   <div class="app-container">
     <header class="app-header">
-      <h1 class="app-title">Metro Paris</h1>
+      <h1 class="app-title">Guide Me</h1>
     </header>
 
     <main class="main-content">
@@ -182,22 +182,6 @@
                 </div>
               </div>
             </div>
-          </div>
-
-          <div class="stations-list-container">
-            <h2>Toutes les stations</h2>
-            <ul v-if="data && data.stations" class="all-stations-list">
-              <li
-                v-for="item in data.stations"
-                :key="item.id"
-                class="station-list-item"
-              >
-                <span class="station-id">ID: {{ item.id }}</span>
-                <span class="station-name">{{ item.station }}</span>
-                <span class="station-line">Ligne: {{ item.line }}</span>
-              </li>
-            </ul>
-            <div v-else class="loading-message">Chargement en cours...</div>
           </div>
         </div>
 
@@ -664,39 +648,6 @@ body {
 .metro-map {
   width: 100%;
   border-radius: 8px;
-}
-
-.stations-list-container {
-  background: white;
-  border-radius: 12px;
-  padding: 16px;
-  box-shadow: var(--card-shadow);
-  margin-top: 24px;
-}
-
-.stations-list-container h2 {
-  margin-bottom: 16px;
-  font-size: 18px;
-  color: var(--primary-color);
-}
-
-.all-stations-list {
-  list-style: none;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  gap: 12px;
-  max-height: 500px;
-  overflow-y: auto;
-  padding: 8px;
-}
-
-.station-list-item {
-  padding: 12px;
-  background-color: var(--background-light);
-  border-radius: 8px;
-  display: flex;
-  flex-direction: column;
-  font-size: 14px;
 }
 
 .station-id {
