@@ -29,15 +29,20 @@ def read_all_stops_times_and_save():
         pickle.dump(ratp_data, f)
 
 def load_ratp_data():
+    folder = BASE_DIR / "container_pkl_files"
+    folder.mkdir(parents=True, exist_ok=True)  # Ensure folder exists
 
-    pkl_file = BASE_DIR / "container_pkl_files" / "ratp_data.pkl"
-    
+    pkl_file = folder / "ratp_data.pkl"
+
     if not os.path.exists(pkl_file) or os.path.getsize(pkl_file) == 0:
         print("ratp_data.pkl not found or empty. Creating it...")
         read_all_stops_times_and_save()
+
     with open(pkl_file, "rb") as f:
         ratp_data = pickle.load(f)
+
     return ratp_data
+
 
 def read_and_save_stops():
     pathfile = Path(__file__).parent.parent / "V2_text_files" / "stops.txt"
