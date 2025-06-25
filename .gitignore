@@ -9,3 +9,18 @@ __pycache__/
 .env
 
 node_modules
+fastapi-backend/app/V2_text_files/agency.txt
+fastapi-backend/app/V2_text_files/calendar_dates.txt
+fastapi-backend/app/V2_text_files/calendar.txt
+fastapi-backend/app/V2_text_files/pathways.txt
+fastapi-backend/app/V2_text_files/routes.txt
+fastapi-backend/app/V2_text_files/stop_extensions.txt
+fastapi-backend/app/V2_text_files/stop_times.txt
+fastapi-backend/app/V2_text_files/stops.txt
+fastapi-backend/app/V2_text_files/transfers.txt
+fastapi-backend/app/V2_text_files/trips.txt
+fastapi-backend/app/functions/container_pkl_files/ratp_data.pkl
+fastapi-backend/app/functions/container_pkl_files/max_len_results.pkl
+fastapi-backend/app/functions/container_pkl_files/station_info_cache.pkl
+fastapi-backend/app/functions/container_pkl_files/stop_data.pkl
+fastapi-backend/app/functions/container_pkl_files/trajects_per_metro.pkl
