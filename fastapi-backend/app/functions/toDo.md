@@ -1,0 +1,2 @@
+- Change to POO
+- Structure of attributs for each functions
