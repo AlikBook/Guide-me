@@ -29,11 +29,13 @@ def read_metro_data(filepath :str):
                     edges.append(line_to_add)
     n = len(vertices)
     adjency_matrix = [[0 for _ in range(n)] for _ in range(n)]
+    edges_not_symetric = ((145,373),(201,145),(259,36),(36,198),(34,248),(248,280),(280,92),(92,34))
 
     for edge in edges:        
         i, j, w = int(edge[1]), int(edge[2]), int(edge[3])
         adjency_matrix[i][j] = w
-        adjency_matrix[j][i] = w 
+        if (i,j) not in edges_not_symetric:
+            adjency_matrix[j][i] = w 
     
     return adjency_matrix, vertices, edges
 
@@ -73,25 +75,33 @@ def get_path(prev : list, target: int):
         target = prev[target]
     return path[::-1]  
 
-def calculate_path_and_time(index_start: int, index_finish :int):
+def calculate_path_and_time(index_start: int, index_finish: int):
     global metro_data
     matrix, vertices, edges = metro_data #read_metro_data(filepath)
     dist, prev = dijkstra_algo_with_path(matrix, start=index_start)
-    
-    json_list_return ={}
+    path = get_path(prev, index_finish)
 
-    json_list_return["total_time"]= f"{int(dist[index_finish]/60)} minutes and {dist[index_finish]%60} seconds"
-    json_list_return["stations"] = []
-    target = index_finish 
-    path = get_path(prev, target)
-    
-    for station in path:
-        json_list_return["stations"].append({
-            "id": vertices[station][1],
-            "station": vertices[station][2],
-            "line": vertices[station][3]
-        })
-    return json_list_return
+    # Group stations by metro line
+    stations_by_line = {}
+    for station_idx in path:
+        station = vertices[station_idx]
+        line = station[3]
+        key = f"Metro {line}"
+        station_info = {
+            "id": station[1],
+            "station": station[2]
+        }
+        if key not in stations_by_line:
+            stations_by_line[key] = []
+        stations_by_line[key].append(station_info)
+
+    # Convert to desired list-of-dicts format
+    stations_list = [{line: stations} for line, stations in stations_by_line.items()]
+
+    return {
+        "total_time": f"{int(dist[index_finish] // 60)} minutes and {int(dist[index_finish] % 60)} seconds",
+        "stations": stations_list
+    }
 
 def display_ids():
     global metro_data
@@ -101,7 +111,8 @@ def display_ids():
     for station in vertices:
         json_list_return["stations"].append({
             "id": station[1],
-            "station": station[2]
+            "station": station[2],
+            "line": station[3]
         })
     return json_list_return
 

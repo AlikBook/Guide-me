@@ -1,9 +1,15 @@
-import { createRouter, createWebHistory } from 'vue-router';
-import Home from './views/Home.vue';
+import { createRouter, createWebHistory } from "vue-router";
+import Home from "./views/Home.vue";
+import SearchResults from "./components/SearchResults.vue";
 
 const routes = [
-  { path: '/', component: Home, meta: { title: 'Home' } },
-  
+  { path: "/", component: Home, meta: { title: "Home" } },
+  {
+    path: "/search",
+    component: SearchResults,
+    meta: { title: "Search Results" },
+    props: (route) => ({ query: route.query.q }),
+  },
 ];
 
 const router = createRouter({
@@ -12,7 +18,7 @@ const router = createRouter({
 });
 
 router.beforeEach((to, from, next) => {
-  const defaultTitle = 'Our application';
+  const defaultTitle = "Metro Assistant";
   document.title = to.meta.title || defaultTitle;
   next();
 });
