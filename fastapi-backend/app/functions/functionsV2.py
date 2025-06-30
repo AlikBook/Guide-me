@@ -441,3 +441,129 @@ def display_ids(metro_info,filtered_metro_ids):
             })
     
     return json_list_return
+
+"""
+Fonctions pour la map
+
+"""
+
+def stops_position():
+    """
+    Fonction qui retourne les localisations des stops/stations
+    ------------------
+    return format:
+    {
+        <stop_id (int)> : 
+        {
+            name: <stop_name (str)>,
+            lat: <stop_latitude (float)>,
+            long: <stop_longitude (float)>,
+            prev: <previous_stop_id (int)>,
+            ligne: <stop_metro_line (int)>
+        },
+    }
+    """
+
+    pathfile = Path(__file__).parent.parent / "V2_text_files" / "stops.txt"
+    pathfile = pathfile.resolve()
+
+    pkl_file = BASE_DIR / "container_pkl_files" / "stop_position_data.pkl"
+    return_data = {}
+
+    if not os.path.exists(pkl_file) or os.path.getsize(pkl_file) == 0:
+        print("stop_position_data.pkl not found or empty. Creating it...")
+        trajects_per_metro = get_trajets_for_metro()
+        list_of_trajet = get_max_len(trajects_per_metro)
+        metro_info = get_stations_id_and_name_per_metro(trajects_per_metro, list_of_trajet) # [ ... , (<stop_id(int)>, <stop_name(str)>, <line_num(int)>), ...]
+        concerned_stops = {stop[0]: stop[1:] for stop in metro_info}
+        with open(pathfile,"r", encoding="utf-8") as f:
+            for i, line in enumerate(f,1):
+                if i>1:
+                    line = line.strip().split(",")
+                    stop_id = line[0].split(":")[-1]
+
+                    stop_name = line[2]
+                    stop_latitude = line[5]
+                    stop_longitude = line[4]
+                    previous_stop = line[9]
+                    
+                    if stop_id in concerned_stops.keys():
+                        stop_metro_line = concerned_stops[stop_id][1]
+                        return_data[stop_id] = {
+                            "name": stop_name if stop_name != '' else "Unknown",
+                            "lat": stop_latitude if stop_latitude != '' else 0,
+                            "long": stop_longitude if stop_longitude != '' else 0,
+                            "prev": previous_stop if previous_stop != '' else -1,
+                            "line": stop_metro_line if stop_metro_line != '' else 0
+                        }
+        with open(pkl_file, "wb") as f:
+           pickle.dump(return_data, f)
+    else:
+        with open(pkl_file, "rb") as f:
+            return_data = pickle.load(f)
+    return return_data
+
+def lines_info(line_type_list:list =['metro']):
+    """
+    Fonction qui retourne des informations utile sur toutes les lignes de transport
+    ------------------
+    return format:
+    {
+    Lines:
+        {
+            <line_name (str)>: 
+                {
+                    id: <line_id(int),
+                    color: <line_color(str)>,
+                    tcolor: <text_color(str)>,
+                    type: <line_type_number(int)>,
+                }
+        }
+    Types:
+        {
+            <line_type_number(int)>: <line_type_name(str)>
+        }
+    }
+    """
+
+    pathfile = Path(__file__).parent.parent / "V2_text_files" / "routes.txt"
+    pathfile = pathfile.resolve()
+
+    pkl_file = BASE_DIR / "container_pkl_files" / "routes_info_data.pkl"
+    return_data = {}
+
+    if not os.path.exists(pkl_file) or os.path.getsize(pkl_file) == 0:
+        print("routes_info_data.pkl not found or empty. Creating it...")
+        
+        route_types = {
+            "tramway": 0,
+            "metro" : 1,
+            "XER": 2,
+            "bus": 3,
+            "funiculair": 7
+        }
+        return_data["Lines"] = {}
+        return_data["Types"] = {k: v for k, v in route_types.items() if k in line_type_list}
+        route_types_inversed = {v: k for k, v in route_types.items()}
+
+        with open(pathfile,"r", encoding="utf-8") as f:
+            for i, line in enumerate(f,1):
+                if i>1:
+                    line = line.strip().split(",")
+                    line_id = line[0].split(":")[-1][3:]
+                    line_type_number = line[5]
+
+                    if route_types_inversed[int(line_type_number)] in line_type_list:
+
+                        line_name = line[3]
+                        line_color = line[8]
+                        text_color = line[9]
+
+                        return_data[line_name] = {"id": line_id, "color": line_color, "tcolor": text_color, "type": line_type_number}
+        with open(pkl_file, "wb") as f:
+           pickle.dump(return_data, f)
+    else:
+        with open(pkl_file, "rb") as f:
+            return_data = pickle.load(f)
+    
+    return return_data

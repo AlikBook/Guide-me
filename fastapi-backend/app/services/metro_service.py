@@ -1,5 +1,6 @@
 from fastapi import HTTPException
-from app.functions.functionsV2 import calculate_path_and_time, display_ids
+from app.functions.functionsV2 import calculate_path_and_time, display_ids, stops_position, lines_info
+from app.functions.functionsV1 import stations_position
 
 def get_trip(start: int, end: int, graph: list, metro_info: list, filtered_metro_ids:list):
     try:
@@ -21,10 +22,29 @@ def get_all_station_ids(metro_info: list, filtered_metro_ids:list):
     try:
         return display_specific_metro_stations(metro_line)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e))"""
     
+
+    
+"""
+Services de la map
+
+"""
+
 def get_stations_position():
     try:
         return stations_position()
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))"""
+        raise HTTPException(status_code=500, detail=str(e))
+    
+def get_stops_position():
+    try:
+        return stops_position()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+def get_lines_info():
+    try:
+        return lines_info()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

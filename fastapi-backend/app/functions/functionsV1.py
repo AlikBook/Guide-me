@@ -198,7 +198,6 @@ def stations_position():
     filepath = Path(__file__).parent.parent / "v1_text_files" / "pospoints.txt"
     filepath = filepath.resolve()
     t = str.maketrans({"@": " ", '\n': ''})
-    print(matrix, vertices, edges)
     with open(filepath, "r", encoding="utf-8") as f:
         for i, line in enumerate(f, 1):
             station_id, metro_line, pos_x, pos_y, station = line.split(';')
@@ -207,5 +206,4 @@ def stations_position():
             if metro_line not in json_station_positions:
                 json_station_positions[metro_line] = {}
             json_station_positions[metro_line][station] = {"id": station_id, 'x': int(pos_x), 'y': int(pos_y), 'it': 1, 'out': get_station_output(station_id), 'd': calculate_degree_of_station(station_id)}
-    print(json_station_positions)
     return json_station_positions

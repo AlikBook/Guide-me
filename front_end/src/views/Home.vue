@@ -209,11 +209,7 @@
         <!-- Colonne de droite pour la carte -->
         <div class="map-column">
           <div class="map-card">
-            <img
-              class="metro-map"
-              src="/metrof_r.png"
-              alt="Plan du métro parisien"
-            />
+            <MetroMap />
           </div>
         </div>
       </div>
@@ -222,6 +218,7 @@
 </template>
 
 <script setup>
+import MetroMap from '../components/MetroMap.vue'
 import { ref, onMounted, computed } from "vue";
 
 const data = ref(null);
@@ -459,7 +456,7 @@ body {
 }
 
 .app-container {
-  max-width: 1300px;
+  max-width: 1700px;
   margin: 0 auto;
   padding: 0 20px;
 }

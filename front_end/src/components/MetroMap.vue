@@ -6,22 +6,24 @@
 import { ref, onMounted } from 'vue'
 import 'ol/ol.css'
 import Feature from 'ol/Feature.js';
-import Map from 'ol/Map'
-import View from 'ol/View'
+import Map from 'ol/Map';
+import View from 'ol/View';
 import Point from 'ol/geom/Point.js';
-import TileLayer from 'ol/layer/Tile'
-import ImageLayer from 'ol/layer/Image'
-import ImageStatic from 'ol/source/ImageStatic'
+import TileLayer from 'ol/layer/Tile';
+import ImageLayer from 'ol/layer/Image';
+import ImageStatic from 'ol/source/ImageStatic';
 import Projection from 'ol/proj/Projection.js';
 import VectorLayer from 'ol/layer/Vector.js';
-import OSM from 'ol/source/OSM';
+// import OSM from 'ol/source/OSM';
+import XYZ from 'ol/source/XYZ'
 import VectorSource from 'ol/source/Vector.js';
 import Circle from 'ol/style/Circle.js';
 import Fill from 'ol/style/Fill.js';
-import Icon from 'ol/style/Icon.js';
+// import Icon from 'ol/style/Icon.js';
 import Stroke from 'ol/style/Stroke.js';
 import Style from 'ol/style/Style.js';
-import { fromLonLat } from 'ol/proj'
+// import { apply } from 'ol-mapbox-style';
+import { fromLonLat } from 'ol/proj';
 
 // Variable de base
 const mapContainer = ref(null)
@@ -52,21 +54,10 @@ const mapBounds = [ maxSw[0], maxSw[1], maxNe[0], maxNe[1] ]
     }),
   });*/
 const features = []
-const linesColors = {
-  '1': '#0000FF', // Ligne 1
-  '2': '#00FF00', // Ligne 2
-  '3': '#FF0000', // Ligne 3
-  '3bis': '#FF0000', // Ligne 3bis
-  '4': '#FFFF00', // Ligne 4
-  '5': '#FF00FF', // Ligne 5
-  '6': '#00FFFF', // Ligne 6
-  '7': '#FFA500', // Ligne 7
-  '8': '#800080', // Ligne 8
-  '9': '#008000', // Ligne 9
-  '10': '#808080', // Ligne 10
-  '11': '#FFC0CB', // Ligne 11
-  '12': '#A52A2A', // Ligne 12
-}
+const linesColors = ref(null)
+const colorTheme = 0
+const API_KEY = "vLhXmBp5kOsQj3uKFlLZ"
+const linesInfo = ref(null)
 
 // Numéro de la version du projet
 const version = 2
@@ -75,6 +66,7 @@ onMounted( async () => {
   // Génération de l'affichage des stations
   await getMetroPoints()
   setStationPoints()
+  getLinesInfo()
 
   // Couche pour l'affichage des éléments vectoriels
   const vectorSource = new VectorSource({
@@ -111,16 +103,20 @@ onMounted( async () => {
   }
   else if(version == 2){
     var Layer = new TileLayer({
-        source: new OSM()
+        source: new XYZ({
+          url: `https://api.maptiler.com/maps/basic/{z}/{x}/{y}.png?key=${API_KEY}`,
+          tileSize: 512,
+          crossOrigin: ''
+        })
       })
     var center = [ParisLocation[0], ParisLocation[1]]
     var bounds = mapBounds
-    var zoom = 17.3
+    var zoom = 11.7
     var view = new View({
       center: center, 
       zoom: zoom,
-      minZoom: zoom,
-      extent: bounds
+      //minZoom: zoom,
+      //extent: bounds
     })
   }
 
@@ -142,12 +138,20 @@ async function getMetroPoints(){
   if(version == 1){
     const response = await fetch( backendAdress + '/stations_position')
     data.value = await response.json()
-    console.log(data.value)
   }
   else if(version == 2){
-    const response = await fetch( backendAdress + '/stations_position')
+    const response = await fetch( backendAdress + '/stops_position')
     data.value = await response.json()
   }
+}
+
+async function getLinesInfo(){
+  /**
+   * Fonction qui récupère des informations sur les lignes de transport
+   */
+  const response = await fetch( backendAdress + '/lines_info')
+  linesInfo.value = await response.json()
+  console.log(linesInfo.value)
 }
 
 async function setStationPoints(){
@@ -191,15 +195,24 @@ async function setStationPoints(){
     }
   }
   else if(version == 2){
-    for(let lineNum in data.value){
-      let line = data.value[lineNum]
-      for(let stationName in line){
-        let position = line[stationName]
-        let p = new Point([(position[0]/952)*(maxSw[0]-maxNe[0])+maxNe[0], (position[1]/987)*(maxSw[1]-maxNe[1])+maxNe[1]])
-        let f = new Feature({geometry: p})
-        f.setStyle([pointStyle])
-        features.push(f)
-      }
+    for(let stop_id in data.value){
+      let stop = data.value[stop_id]
+      let p = new Point(fromLonLat([stop.long, stop.lat]))
+      let f = new Feature({geometry: p})
+      var pointStyle = new Style({
+        image: new Circle({
+          radius: 3.5,
+          fill: new Fill({
+            color: 'white',
+          }),
+          stroke: new Stroke({
+            color: 'red',
+            width: 1.5,
+          }),
+        }),
+      })
+      f.setStyle([pointStyle])
+      features.push(f)
     }
   }
 }
@@ -208,7 +221,7 @@ async function setStationPoints(){
 
 <style scoped>
 .map-container {
-  width: 987px;
-  height: 952px;
+  width: 768px;
+  height: 768px;
 }
 </style>

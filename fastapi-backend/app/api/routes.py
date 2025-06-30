@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Request,HTTPException
 
 from pydantic import BaseModel
-from app.services.metro_service import get_trip, get_all_station_ids, get_stations_for_line, get_stations_position
+from app.services.metro_service import get_trip, get_all_station_ids, get_stations_position, get_stops_position, get_lines_info
 
 router = APIRouter()
 
@@ -42,7 +42,7 @@ async def station_ids_endpoint(request: Request):
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.get("/stations/{line_number}")
+'''@router.get("/stations/{line_number}")
 async def stations_for_line_endpoint(line_number: int):
     """
     Route API qui retourne les stations du numéro de la ligne donnée en paramètre
@@ -58,23 +58,78 @@ async def stations_for_line_endpoint(line_number: int):
             }
         }
     """
-    return get_stations_for_line(line_number)
+    return get_stations_for_line(line_number)'''
+
+"""
+Routers de la map
+
+"""
 
 @router.get("/stations_position")
 async def stations_position_endpoint():
     """
-    Route API qui retourne la position des stations
+    Fonction qui retourne la position des stations de métro du fichier pospoints.txt
     ------------------
     return format:
     { 
-        <metro line number (int)> : 
+        <metro line number (str)> : 
         {
             <Nom de la station (str)> : 
-            [
-                <pos_x (int)>, 
-                <pos_y (int)>
-            ]
+            {
+                id: <station_id (int)>,
+                x: <pos_x (int)>, 
+                y: <pos_y (int)>,
+                it: <number_of_iteration (int)>,
+                out: 
+                {
+                    <station_id (int)>: <is_outside_line (bool)>
+                },
+                d: <degree (int)>
+            }
         }
     }
     """
     return get_stations_position()
+
+@router.get("/stops_position")
+async def stops_position_endpoint():
+    """
+    Fonction qui retourne les localisations des stops/stations
+    ------------------
+    return format:
+    {
+        <stop_id (int)> : 
+        {
+            name: <stop_name (str)>,
+            lat: <stop_latitude (float)>,
+            long: <stop_longitude (float)>,
+            prev: <previous_stop_id (int)>
+        },
+    }
+    """
+    return get_stops_position()
+
+@router.get("/lines_info")
+async def lines_info_endpoint():
+    """
+    Fonction qui retourne des informations utile sur toutes les lignes de transport
+    ------------------
+    return format:
+    {
+    Lines:
+        {
+            <line_name (str)>: 
+                {
+                    id: <line_id(int),
+                    color: <line_color(str)>,
+                    tcolor: <text_color(str)>,
+                    type: <line_type_number(int)>,
+                }
+        }
+    Types:
+        {
+            <line_type_number(int)>: <line_type_name(str)>
+        }
+    }
+    """
+    return get_lines_info()
