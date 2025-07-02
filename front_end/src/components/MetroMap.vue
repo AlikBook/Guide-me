@@ -68,12 +68,16 @@ onMounted( async () => {
   await getLinesInfo()
   await getMetroPoints()
   setStationPoints()
+  
+  // Affichage des lignes
+  await getLinesTraces()
+  let linesLayer =  await setLinesTraces()
 
   // Couche pour l'affichage des éléments vectoriels
   const vectorSource = new VectorSource({
     features: features,
   });
-  const vectorLayer = new VectorLayer({
+  const stationLayer = new VectorLayer({
     source: vectorSource,
   });
 
@@ -84,7 +88,7 @@ onMounted( async () => {
       units: 'pixels',
       extent: imageBounds
     })
-    var Layer = new ImageLayer({
+    var mapLayer = new ImageLayer({
       source: new ImageStatic({
         url: '/metrof_r.png',
         projection: metroMapProjection,
@@ -103,7 +107,7 @@ onMounted( async () => {
     })
   }
   else if(version == 2){
-    var Layer = new TileLayer({
+    var mapLayer = new TileLayer({
         source: new XYZ({
           url: `https://api.maptiler.com/maps/basic/{z}/{x}/{y}.png?key=${API_KEY}`,
           tileSize: 512,
@@ -125,15 +129,24 @@ onMounted( async () => {
   const map = new Map({
     target: mapContainer.value,
     layers: [
-      Layer,
-      vectorLayer
+      mapLayer,
+      linesLayer,
+      stationLayer
     ],
     view: view
   })
-  
-  // Affichage des lignes
-  await getLinesTraces()
-  setLinesTraces(map)
+
+  // Affichage des infobulles
+  map.on('pointermove', (event) => {
+    const feature = map.forEachFeatureAtPixel(event.pixel, (f) => f);
+    const container = map.getTargetElement();
+
+    if (feature && feature.get('stationName')) {
+      container.setAttribute('title', feature.get('stationName'));
+    } else {
+      container.removeAttribute('title');
+    }
+  });
 })
 
 async function getMetroPoints(){
@@ -168,7 +181,7 @@ async function getLinesTraces(){
   }
 }
 
-async function setLinesTraces(map){
+async function setLinesTraces(){
   /**
    * Fonction qui ajoute les tracés des lignes de transport à la carte
    */
@@ -181,7 +194,7 @@ async function setLinesTraces(map){
     features: geojsonFeatures,
   })
 
-  const vectorLayer = new VectorLayer({
+  const linesLayer = new VectorLayer({
     source: vectorSource,
     style: function(feature) {
       const lineColor = '#' + (feature.values_.colourweb_hexa ?? '#000000')
@@ -194,7 +207,7 @@ async function setLinesTraces(map){
     }
   })
 
-  map.addLayer(vectorLayer)
+  return linesLayer
 }
 
 async function setStationPoints(){
@@ -242,6 +255,7 @@ async function setStationPoints(){
       let stop = data.value[stop_id]
       let p = new Point(fromLonLat([stop.long, stop.lat]))
       let f = new Feature({geometry: p})
+      f.set('stationName', stop.name);
       if (stop.line === 15){
         stop.line = "3B"
       }
@@ -265,6 +279,18 @@ async function setStationPoints(){
       features.push(f)
     }
   }
+}
+
+async function resetHighlight(){
+
+}
+
+async function highlightLine(){
+
+}
+
+async function highlightRoute(){
+
 }
 
 </script>
