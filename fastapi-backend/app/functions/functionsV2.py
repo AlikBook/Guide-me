@@ -606,3 +606,28 @@ def geojson_metro_filter(file: dict) -> dict:
         del file["features"][i]
 
     return file
+
+def temp_association_stops_lines_traces():
+    """
+    Fonction temporaire qui modifie le geojson des tracés des lignes pour avoir les stations de début et de fin dans les properties
+    ------------------
+    return format:
+    None
+    """
+
+    stops_infos = {}
+
+    pathfile = Path(__file__).parent.parent / "Geojson" / "traces-du-reseau-ferre-idf.geojson"
+    pathfile = pathfile.resolve()
+
+    for k, v in stops_position().items():
+        stops_infos[v["line"]][k] = v
+
+    with open(pathfile, "r", encoding="utf-8") as f:
+        file = json.load(f)
+
+        features = file["features"]
+
+        
+
+    return
