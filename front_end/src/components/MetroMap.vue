@@ -14,6 +14,7 @@ import ImageLayer from 'ol/layer/Image';
 import ImageStatic from 'ol/source/ImageStatic';
 import Projection from 'ol/proj/Projection.js';
 import VectorLayer from 'ol/layer/Vector.js';
+import GeoJSON from 'ol/format/GeoJSON'
 // import OSM from 'ol/source/OSM';
 import XYZ from 'ol/source/XYZ'
 import VectorSource from 'ol/source/Vector.js';
@@ -41,6 +42,11 @@ const maxNe = fromLonLat([2.4699, 48.9022])
 const mapBounds = [ maxSw[0], maxSw[1], maxNe[0], maxNe[1] ]
 
 // Eléments de la carte
+const features = []
+const linesColors = ref(null)
+const API_KEY = "vLhXmBp5kOsQj3uKFlLZ"
+const linesInfo = ref(null)
+const metroLinesGeojson = ref(null)
 /*const pointStyle = new Style({
     image: new Circle({
       radius: 3.5,
@@ -53,20 +59,15 @@ const mapBounds = [ maxSw[0], maxSw[1], maxNe[0], maxNe[1] ]
       }),
     }),
   });*/
-const features = []
-const linesColors = ref(null)
-const colorTheme = 0
-const API_KEY = "vLhXmBp5kOsQj3uKFlLZ"
-const linesInfo = ref(null)
 
 // Numéro de la version du projet
 const version = 2
 
 onMounted( async () => {
   // Génération de l'affichage des stations
+  await getLinesInfo()
   await getMetroPoints()
   setStationPoints()
-  getLinesInfo()
 
   // Couche pour l'affichage des éléments vectoriels
   const vectorSource = new VectorSource({
@@ -109,13 +110,13 @@ onMounted( async () => {
           crossOrigin: ''
         })
       })
-    var center = [ParisLocation[0], ParisLocation[1]]
+    var center = [ParisLocation[0]/* - 1300*/, ParisLocation[1]]
     var bounds = mapBounds
-    var zoom = 11.7
+    var zoom = 11.9
     var view = new View({
       center: center, 
       zoom: zoom,
-      //minZoom: zoom,
+      minZoom: zoom,
       //extent: bounds
     })
   }
@@ -129,6 +130,10 @@ onMounted( async () => {
     ],
     view: view
   })
+  
+  // Affichage des lignes
+  await getLinesTraces()
+  setLinesTraces(map)
 })
 
 async function getMetroPoints(){
@@ -151,7 +156,45 @@ async function getLinesInfo(){
    */
   const response = await fetch( backendAdress + '/lines_info')
   linesInfo.value = await response.json()
-  console.log(linesInfo.value)
+}
+
+async function getLinesTraces(){
+  /**
+   * Fonction qui récupère le tracés des lignes de transport
+   */
+  if(version == 2){
+    const response = await fetch( backendAdress + '/metro_lines.geojson')
+    metroLinesGeojson.value = await response.json()
+  }
+}
+
+async function setLinesTraces(map){
+  /**
+   * Fonction qui ajoute les tracés des lignes de transport à la carte
+   */
+  const format = new GeoJSON()
+  const geojsonFeatures = format.readFeatures(metroLinesGeojson.value, {
+    featureProjection: 'EPSG:3857'
+  })
+
+  const vectorSource = new VectorSource({
+    features: geojsonFeatures,
+  })
+
+  const vectorLayer = new VectorLayer({
+    source: vectorSource,
+    style: function(feature) {
+      const lineColor = '#' + (feature.values_.colourweb_hexa ?? '#000000')
+      return new Style({
+        stroke: new Stroke({
+          color: lineColor,
+          width: 3,
+        }),
+      })
+    }
+  })
+
+  map.addLayer(vectorLayer)
 }
 
 async function setStationPoints(){
@@ -199,16 +242,23 @@ async function setStationPoints(){
       let stop = data.value[stop_id]
       let p = new Point(fromLonLat([stop.long, stop.lat]))
       let f = new Feature({geometry: p})
+      if (stop.line === 15){
+        stop.line = "3B"
+      }
+      else if (stop.line == 16){
+        stop.line = "7B"
+      }
+
       var pointStyle = new Style({
         image: new Circle({
           radius: 3.5,
           fill: new Fill({
-            color: 'white',
-          }),
+            color: '#' + (linesInfo.value.Lines[String(stop.line).trim()]?.color ?? 'CCCCCC'),
+          }),/*
           stroke: new Stroke({
-            color: 'red',
+            color: '#' + (linesInfo.value.Lines[String(stop.line).trim()]?.color ?? 'CCCCCC'),
             width: 1.5,
-          }),
+          }),*/
         }),
       })
       f.setStyle([pointStyle])

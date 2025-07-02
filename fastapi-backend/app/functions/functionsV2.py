@@ -1,6 +1,7 @@
 import os
 import pickle
 from pathlib import Path
+import json
 
 BASE_DIR = Path(__file__).resolve().parent
 def create_metro_ids():
@@ -430,9 +431,9 @@ def display_ids(metro_info,filtered_metro_ids):
             name, line = metro_dict[stop_id]
             
             if line == 15:
-                line = '3bis'
+                line = "3bis"
             elif line == 16:
-                line = '7bis'
+                line = "7bis"
             
             json_list_return["stations"].append({
                 "id": str(idx),
@@ -447,7 +448,7 @@ Fonctions pour la map
 
 """
 
-def stops_position():
+def stops_position() -> dict:
     """
     Fonction qui retourne les localisations des stops/stations
     ------------------
@@ -503,7 +504,7 @@ def stops_position():
             return_data = pickle.load(f)
     return return_data
 
-def lines_info(line_type_list:list =['metro']):
+def lines_info(line_type_list:list =['metro']) -> dict:
     """
     Fonction qui retourne des informations utile sur toutes les lignes de transport
     ------------------
@@ -556,10 +557,10 @@ def lines_info(line_type_list:list =['metro']):
                     if route_types_inversed[int(line_type_number)] in line_type_list:
 
                         line_name = line[3]
-                        line_color = line[8]
-                        text_color = line[9]
+                        line_color = line[7]
+                        text_color = line[8]
 
-                        return_data[line_name] = {"id": line_id, "color": line_color, "tcolor": text_color, "type": line_type_number}
+                        return_data["Lines"][line_name] = {"id": line_id, "color": line_color, "tcolor": text_color, "type": line_type_number}
         with open(pkl_file, "wb") as f:
            pickle.dump(return_data, f)
     else:
@@ -567,3 +568,41 @@ def lines_info(line_type_list:list =['metro']):
             return_data = pickle.load(f)
     
     return return_data
+
+def geojson_loader(file_name: str) -> dict:
+    """
+    Fonction qui retourne le geojson passé en paramètre
+    ------------------
+    return format:
+    <return_file (dict)>
+    """
+    
+    pathfile = Path(__file__).parent.parent / "Geojson" / file_name
+    pathfile = pathfile.resolve()
+
+    with open(pathfile, "r", encoding="utf-8") as f:
+        return_file = json.load(f)
+
+    return return_file
+
+def geojson_metro_filter(file: dict) -> dict:
+    """
+    Fonction qui retourne seulement les station/trajets geojson des métro du fichier passé en paramètre
+    ------------------
+    return format:
+    <file (dict)>
+    """
+    
+    feature_to_delete_ids = []
+    for i, feature in enumerate(file["features"]):
+        try:
+            is_metro = (feature["properties"]["metro"] == 1)
+        except KeyError:
+            is_metro = (feature["properties"]["mode"] == "METRO")
+        if not is_metro:
+            feature_to_delete_ids.append(i)
+    
+    for i in sorted(feature_to_delete_ids, reverse=True):
+        del file["features"][i]
+
+    return file

@@ -63,7 +63,6 @@ export default {
     async fetchAllStations() {
       try {
         const response = await fetch("/station_ids");
-        console.log(response.value)
         const data = await response.json();
         this.allStations = data.stations.map((station) => ({
           id: station.id,

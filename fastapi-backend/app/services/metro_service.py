@@ -1,5 +1,5 @@
 from fastapi import HTTPException
-from app.functions.functionsV2 import calculate_path_and_time, display_ids, stops_position, lines_info
+from app.functions.functionsV2 import calculate_path_and_time, display_ids, stops_position, lines_info, geojson_loader, geojson_metro_filter
 from app.functions.functionsV1 import stations_position
 
 def get_trip(start: int, end: int, graph: list, metro_info: list, filtered_metro_ids:list):
@@ -46,5 +46,11 @@ def get_stops_position():
 def get_lines_info():
     try:
         return lines_info()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+def get_geojson(file_path:str):
+    try:
+        return geojson_metro_filter(geojson_loader(file_path))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
