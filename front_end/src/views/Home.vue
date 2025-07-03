@@ -114,6 +114,8 @@
                   />
                 </svg>
               </button>
+              <NetworkAnalysis />
+              <CarbonImpactPopup :totalStations="trip?.stations?.length || 0" />
             </div>
           </div>
           
@@ -222,6 +224,8 @@
 </template>
 
 <script setup>
+import NetworkAnalysis from '../components/Network-analysis.vue'
+import CarbonImpact from '../components/CarbonImpact.vue'
 import { ref, onMounted, computed } from "vue";
 
 const data = ref(null);
