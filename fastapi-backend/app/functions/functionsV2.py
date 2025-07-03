@@ -504,6 +504,6 @@ def analyze_graph(graph: dict, metro_info: list = None):
     return {
         "is_connected": True,
         "message": "Le réseau métro est entièrement connecté.",
-        "mst_total_time": f"{cost // 60} minutes et {cost % 60} secondes",
+        "mst_total_time": f"{cost // 3600} heures et {(cost % 3600) // 60} minutes",
         "mst_cost_seconds": cost
     }

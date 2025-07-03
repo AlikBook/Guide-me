@@ -1,99 +1,85 @@
 <template>
     <div>
-      <button
-        @click="showPopup = true"
-        class="carbon-button"
-        :disabled="!totalStations"
-      >
-        Voir l’empreinte carbone
-      </button>
+      <button @click="openPopup" class="carbon-button">Voir l’empreinte carbone</button>
   
       <div v-if="showPopup" class="popup-overlay">
-        <div class="popup-container">
-          <h2 class="popup-title">Empreinte carbone du trajet</h2>
+        <div class="popup-content">
+          <h2>Impact carbone estimé</h2>
   
-          <p class="popup-line">
-            🧭 Distance estimée : {{ totalStations }} stations
-          </p>
-          <p class="popup-line">
-            🌱 Émissions estimées : <strong>{{ emission }} g CO₂</strong>
-          </p>
-          <p class="popup-line text-green">
-            Ce trajet est très peu polluant 💚
-          </p>
+          <div v-if="trip && trip.stations">
+            <p><strong>Nombre de stations :</strong> {{ trip.stations.length }}</p>
+            <p><strong>Émission estimée :</strong> {{ estimatedCO2 }} g de CO₂</p>
+          </div>
+          <div v-else>
+            <p>Veuillez d'abord calculer un itinéraire.</p>
+          </div>
   
-          <button @click="showPopup = false" class="close-button">Fermer</button>
+          <button @click="closePopup" class="close-button">Fermer</button>
         </div>
       </div>
     </div>
   </template>
   
   <script setup>
-  import { ref, computed } from 'vue'
+  import { ref, computed, defineProps } from 'vue';
   
   const props = defineProps({
-    totalStations: Number
-  })
+    trip: Object,
+  });
   
-  const showPopup = ref(false)
+  const showPopup = ref(false);
+  const openPopup = () => (showPopup.value = true);
+  const closePopup = () => (showPopup.value = false);
   
-  const emission = computed(() =>
-    props.totalStations ? (props.totalStations * 0.15).toFixed(2) : 0
-  )
+  const estimatedCO2 = computed(() => {
+    if (!props.trip || !props.trip.stations) return 0;
+    const stations = props.trip.stations.length;
+    return stations * 4; // 4g de CO₂/station
+  });
   </script>
   
   <style scoped>
   .carbon-button {
-    padding: 10px 20px;
-    font-size: 16px;
-    background-color: #2ecc71;
+    background-color: #10b981;
     color: white;
+    padding: 12px 24px;
+    font-size: 16px;
+    font-weight: 600;
     border: none;
     border-radius: 8px;
     cursor: pointer;
-    margin-top: 10px;
+    margin-top: 12px;
   }
-  .carbon-button:hover {
-    background-color: #27ae60;
-  }
+  
   .popup-overlay {
     position: fixed;
     inset: 0;
-    background-color: rgba(0, 0, 0, 0.5);
+    background: rgba(0, 0, 0, 0.5);
     display: flex;
     align-items: center;
     justify-content: center;
     z-index: 50;
   }
-  .popup-container {
+  
+  .popup-content {
     background: white;
     padding: 24px;
-    border-radius: 10px;
+    border-radius: 8px;
     max-width: 400px;
-    width: 90%;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
+    width: 100%;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+    text-align: center;
   }
-  .popup-title {
-    font-size: 20px;
-    margin-bottom: 16px;
-  }
-  .popup-line {
-    margin-bottom: 10px;
-    font-size: 16px;
-  }
-  .text-green {
-    color: #2ecc71;
-  }
+  
   .close-button {
-    margin-top: 15px;
-    background: #7f8c8d;
+    margin-top: 16px;
+    background-color: #6b7280;
     color: white;
-    border: none;
     padding: 10px 20px;
+    border: none;
     border-radius: 6px;
-  }
-  .close-button:hover {
-    background: #616a6b;
+    cursor: pointer;
   }
   </style>
+  
   

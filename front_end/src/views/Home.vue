@@ -115,7 +115,7 @@
                 </svg>
               </button>
               <NetworkAnalysis />
-              <CarbonImpactPopup :totalStations="trip?.stations?.length || 0" />
+              <CarbonImpact :trip="trip" />
             </div>
           </div>
           
