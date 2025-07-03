@@ -1,6 +1,8 @@
 import os
 import pickle
 from pathlib import Path
+import json
+import heapq
 
 BASE_DIR = Path(__file__).resolve().parent
 def create_metro_ids():
@@ -441,3 +443,67 @@ def display_ids(metro_info,filtered_metro_ids):
             })
     
     return json_list_return
+def convert_graph_list_to_dict(matrix, node_ids):
+    graph = {node_id: {} for node_id in node_ids}
+    n = len(matrix)
+    for i in range(n):
+        for j in range(n):
+            if matrix[i][j] > 0:
+                graph[node_ids[i]][node_ids[j]] = matrix[i][j]
+    return graph
+
+def is_connected(graph: dict[str, dict[str, int]]):
+    visited = set()
+    start_node = next(iter(graph))
+
+    def dfs(node):
+        visited.add(node)
+        for neighbor in graph[node]:
+            if neighbor not in visited:
+                dfs(neighbor)
+
+    dfs(start_node)
+    return len(visited) == len(graph)
+
+def prim_mst(graph: dict[str, dict[str, int]]):
+    start_node = next(iter(graph))
+    visited = set([start_node])
+    edges = [(weight, start_node, neighbor) for neighbor, weight in graph[start_node].items()]
+    heapq.heapify(edges)
+
+    mst_edges = []
+    total_cost = 0
+
+    while edges and len(visited) < len(graph):
+        weight, u, v = heapq.heappop(edges)
+        if v not in visited:
+            visited.add(v)
+            mst_edges.append((u, v, weight))
+            total_cost += weight
+            for neighbor, w in graph[v].items():
+                if neighbor not in visited:
+                    heapq.heappush(edges, (w, v, neighbor))
+
+    if len(visited) == len(graph):
+        return total_cost, mst_edges
+    else:
+        return None, []
+
+def analyze_graph(graph: dict, metro_info: list = None):
+    connected = is_connected(graph)
+    cost, mst = prim_mst(graph)
+
+    if not connected:
+        return {
+            "is_connected": False,
+            "message": "Le réseau métro n’est pas connecté.",
+            "mst_total_time": None,
+            "mst_cost_seconds": None
+        }
+
+    return {
+        "is_connected": True,
+        "message": "Le réseau métro est entièrement connecté.",
+        "mst_total_time": f"{cost // 3600} heures et {(cost % 3600) // 60} minutes",
+        "mst_cost_seconds": cost
+    }
