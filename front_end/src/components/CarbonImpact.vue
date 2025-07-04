@@ -6,9 +6,10 @@
         <div class="popup-content">
           <h2>Impact carbone estimé</h2>
   
-          <div v-if="trip && trip.stations">
-            <p><strong>Nombre de stations :</strong> {{ trip.stations.length }}</p>
+          <div v-if="hasValidTrip">
+            <p><strong>Nombre de stations :</strong> {{ totalStations }}</p>
             <p><strong>Émission estimée :</strong> {{ estimatedCO2 }} g de CO₂</p>
+            <p><small>Calculé sur la base de 4g de CO₂ par station</small></p>
           </div>
           <div v-else>
             <p>Veuillez d'abord calculer un itinéraire.</p>
@@ -32,9 +33,50 @@
   const closePopup = () => (showPopup.value = false);
   
   const estimatedCO2 = computed(() => {
-    if (!props.trip || !props.trip.stations) return 0;
-    const stations = props.trip.stations.length;
-    return stations * 4; // 4g de CO₂/station
+    if (!hasValidTrip.value) return 0;
+    return totalStations.value * 4; // 4g de CO₂/station
+  });
+
+  const hasValidTrip = computed(() => {
+    // Check new format (multiple trips)
+    if (props.trip && props.trip.trips && props.trip.trips.length > 0) {
+      return props.trip.trips[0].stations && props.trip.trips[0].stations.length > 0;
+    }
+    // Check old format (single trip)
+    return props.trip && props.trip.stations && props.trip.stations.length > 0;
+  });
+
+  const totalStations = computed(() => {
+    if (!hasValidTrip.value) return 0;
+    
+    // Handle new format (multiple trips) - use first trip for carbon calculation
+    if (props.trip.trips && props.trip.trips.length > 0) {
+      const firstTrip = props.trip.trips[0];
+      if (firstTrip.stations) {
+        const stationSet = new Set();
+        firstTrip.stations.forEach((lineObj) => {
+          const stations = Object.values(lineObj)[0];
+          stations.forEach((station) => {
+            stationSet.add(station.id);
+          });
+        });
+        return stationSet.size;
+      }
+    }
+    
+    // Handle old format (single trip)
+    if (props.trip.stations) {
+      const stationSet = new Set();
+      props.trip.stations.forEach((lineObj) => {
+        const stations = Object.values(lineObj)[0];
+        stations.forEach((station) => {
+          stationSet.add(station.id);
+        });
+      });
+      return stationSet.size;
+    }
+    
+    return 0;
   });
   </script>
   

@@ -1,50 +1,61 @@
 from fastapi import HTTPException
-from app.functions.functionsV2 import calculate_path_and_time, display_ids
-from app.functions.functionsV2 import (
-    get_trajets_for_metro,
-    get_max_len,
-    get_stations_id_and_name_per_metro,
-    filter_idx_trajects,
-    join_all_metro_connections,
-    create_metro_empty_graph,
-    convert_graph_list_to_dict,
+from app.functions.functionsV3 import (
+    calculate_path_and_time,
+    display_ids,
     analyze_graph
 )
-from app.functions.functionsV2 import analyze_graph
 
-def get_trip(start: int, end: int, graph: list, metro_info: list, filtered_metro_ids:list):
+def get_trip(start: int, end: int, data: dict):
+    """
+    Calculate trip between two stations using preloaded data
+    """
     try:
-        trip = calculate_path_and_time(start, end, graph, metro_info, filtered_metro_ids)
+        # Extract all necessary data from the preloaded data dictionary
+        edges = data["edges"]
+        metro_info = data["metro_info"]
+        all_station_ids = data["all_station_ids"]
+        id_to_index = data["id_to_index"]
+        rer_stop_data = data["rer_stop_data"]
+        rer_with_line = data["rer_with_line"]
         
-        return trip
+        # Calculate path using functionsV3
+        trips = calculate_path_and_time(
+            start, end, edges, metro_info, all_station_ids, 
+            id_to_index, rer_stop_data, rer_with_line
+        )
+        
+        # Return all trips with additional metadata
+        if trips:
+            return {
+                "trips": trips,
+                "total_options": len(trips)
+            }
+        else:
+            return {"error": "No path found", "trips": [], "total_options": 0}
+        
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-def get_all_station_ids(metro_info: list, filtered_metro_ids:list):
+def get_all_station_ids(data: dict):
     try:
-        return display_ids(metro_info, filtered_metro_ids)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-def analyze_network_and_mst():
-    try:
-        trajects_per_metro = get_trajets_for_metro()
-        list_of_trajet = get_max_len(trajects_per_metro)
-        metro_info = get_stations_id_and_name_per_metro(trajects_per_metro, list_of_trajet)
-        new_list = filter_idx_trajects(trajects_per_metro, metro_info, list_of_trajet)
-        complete_data, filtered_ids = join_all_metro_connections(trajects_per_metro, new_list, metro_info)
-
-        graph_matrix = create_metro_empty_graph(filtered_ids, complete_data)
-        graph_dict = convert_graph_list_to_dict(graph_matrix, filtered_ids)
+        metro_info = data["metro_info"]
+        all_station_ids = data["all_station_ids"]
+        rer_stop_data = data["rer_stop_data"]
+        rer_with_line = data["rer_with_line"]
         
-        return analyze_graph(graph_dict)
+        return display_ids(metro_info, all_station_ids, rer_stop_data, rer_with_line)
+        
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-"""def get_stations_for_line(metro_line: int):
-    if not (1 <= metro_line <= 14):
-        raise HTTPException(status_code=400, detail="Invalid metro line number. Must be between 1 and 14.")
+def analyze_network_and_mst(data: dict):
+    
     try:
-        return display_specific_metro_stations(metro_line)
+        graph = data["graph"]
+        all_station_ids = data["all_station_ids"]
+        metro_info = data["metro_info"]
+        
+        return analyze_graph(graph, all_station_ids, metro_info)
+        
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))"""
+        raise HTTPException(status_code=500, detail=str(e))

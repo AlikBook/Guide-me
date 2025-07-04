@@ -124,57 +124,58 @@
           </div>
 
           <!-- Résultats du trajet -->
-          <div v-if="trip && trip.total_time" class="trip-results">
-            <div class="time-badge">
-              <svg viewBox="0 0 24 24" width="18" height="18">
-                <path
-                  fill="currentColor"
-                  d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8z"
-                />
-                <path
-                  fill="currentColor"
-                  d="M12.5 7H11v6l5.25 3.15.75-1.23-4.5-2.67z"
-                />
-              </svg>
-              <span>{{ trip.total_time }} min</span>
-            </div>
-            <div class="trip-stats">
-              <span>{{ journeyStats.totalStations }} stations</span> •
-              <span
-                >{{ journeyStats.changes }} changement{{
-                  journeyStats.changes > 1 ? "s" : ""
-                }}</span
-              >
-            </div>
-
-            <!-- Bloc compact des lignes -->
-            <div class="compact-lines-container" @click="toggleTripDetails">
-              <div class="compact-lines">
-                <div
-                  v-for="(lineObj, index) in cleanedTrip"
+          <div v-if="trip && ((trip.trips && trip.trips.length > 0) || trip.total_time)" class="trip-results">
+            <!-- Trip Options Selector (only show if we have multiple trips) -->
+            <div v-if="trip.trips && trip.trips.length > 1" class="trip-options">
+              <h3 class="options-title">{{ trip.trips.length }} itinéraires trouvés</h3>
+              <div class="trip-selector">
+                <button
+                  v-for="(tripOption, index) in trip.trips"
                   :key="index"
-                  class="line-badge"
-                  :style="{
-                    backgroundColor: getColorCode(Object.keys(lineObj)[0]),
-                  }"
+                  @click="selectTrip(index)"
+                  class="trip-option-button"
+                  :class="{ active: selectedTripIndex === index }"
                 >
-                  {{ Object.keys(lineObj)[0] }}
-                </div>
-              </div>
-              <div class="toggle-icon">
-                {{ showTripDetails ? "▼" : "▲" }}
+                  <div class="trip-option-info">
+                    <span class="trip-duration">{{ tripOption.total_time }}</span>
+                    <span class="trip-changes">
+                      {{ tripOption.stations.length - 1 }} changement{{ tripOption.stations.length - 1 > 1 ? 's' : '' }}
+                    </span>
+                  </div>
+                </button>
               </div>
             </div>
 
-            <!-- Détails dépliés -->
-            <div v-if="showTripDetails" class="trip-details">
-              <div
-                v-for="(lineObj, lineIndex) in cleanedTrip"
-                :key="lineIndex"
-                class="line-section"
-              >
-                <div class="line-header">
+            <!-- Current Trip Display -->
+            <div v-if="currentTrip || trip.total_time" class="current-trip">
+              <div class="time-badge">
+                <svg viewBox="0 0 24 24" width="18" height="18">
+                  <path
+                    fill="currentColor"
+                    d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8z"
+                  />
+                  <path
+                    fill="currentColor"
+                    d="M12.5 7H11v6l5.25 3.15.75-1.23-4.5-2.67z"
+                  />
+                </svg>
+                <span>{{ currentTrip ? currentTrip.total_time : trip.total_time }}</span>
+              </div>
+              <div class="trip-stats">
+                <span>{{ journeyStats.totalStations }} stations</span> •
+                <span
+                  >{{ journeyStats.changes }} changement{{
+                    journeyStats.changes > 1 ? "s" : ""
+                  }}</span
+                >
+              </div>
+
+              <!-- Bloc compact des lignes -->
+              <div class="compact-lines-container" @click="toggleTripDetails">
+                <div class="compact-lines">
                   <div
+                    v-for="(lineObj, index) in cleanedTrip"
+                    :key="index"
                     class="line-badge"
                     :style="{
                       backgroundColor: getColorCode(Object.keys(lineObj)[0]),
@@ -182,61 +183,100 @@
                   >
                     {{ Object.keys(lineObj)[0] }}
                   </div>
-                  <div class="line-direction">
-                    Descendre à : {{ getLastStation(lineObj).station }}
-                  </div>
                 </div>
+                <div class="toggle-icon">
+                  {{ showTripDetails ? "▼" : "▲" }}
+                </div>
+              </div>
 
-                <div class="stations-list">
-                  <div
-                    v-for="(station, stationIndex) in Object.values(lineObj)[0]"
-                    :key="stationIndex"
-                    class="station-item"
-                    :class="{
-                      'first-station': stationIndex === 0,
-                      'last-station':
-                        stationIndex === Object.values(lineObj)[0].length - 1,
-                    }"
-                  >
-                    <div class="station-marker-container">
-                      <div
-                        class="station-marker"
-                        :style="{
-                          backgroundColor: getColorCode(
-                            Object.keys(lineObj)[0]
-                          ),
-                        }"
-                      ></div>
-                      <div
-                        class="station-line"
-                        v-if="
-                          stationIndex < Object.values(lineObj)[0].length - 1
-                        "
-                        :style="{
-                          backgroundColor: getColorCode(
-                            Object.keys(lineObj)[0]
-                          ),
-                        }"
-                      ></div>
+              <!-- Détails dépliés -->
+              <div v-if="showTripDetails" class="trip-details">
+                <div
+                  v-for="(lineObj, lineIndex) in cleanedTrip"
+                  :key="lineIndex"
+                  class="line-section"
+                >
+                  <div class="line-header">
+                    <div
+                      class="line-badge"
+                      :style="{
+                        backgroundColor: getColorCode(Object.keys(lineObj)[0]),
+                      }"
+                    >
+                      {{ Object.keys(lineObj)[0] }}
                     </div>
-                    <div class="station-info">
-                      <div class="station-name">{{ station.station }}</div>
-                      <div class="station-time" v-if="stationIndex > 0">
-                        {{ station.time || "" }}
+                    <div class="line-direction">
+                      Descendre à : {{ getLastStation(lineObj).station }}
+                    </div>
+                  </div>
+
+                  <div class="stations-list">
+                    <div
+                      v-for="(station, stationIndex) in Object.values(lineObj)[0]"
+                      :key="stationIndex"
+                      class="station-item"
+                      :class="{
+                        'first-station': stationIndex === 0,
+                        'last-station':
+                          stationIndex === Object.values(lineObj)[0].length - 1,
+                      }"
+                    >
+                      <div class="station-marker-container">
+                        <div
+                          class="station-marker"
+                          :style="{
+                            backgroundColor: getColorCode(
+                              Object.keys(lineObj)[0]
+                            ),
+                          }"
+                        ></div>
+                        <div
+                          class="station-line"
+                          v-if="
+                            stationIndex < Object.values(lineObj)[0].length - 1
+                          "
+                          :style="{
+                            backgroundColor: getColorCode(
+                              Object.keys(lineObj)[0]
+                            ),
+                          }"
+                        ></div>
+                      </div>
+                      <div class="station-info">
+                        <div class="station-name-with-accessibility">
+                          <span class="station-name">{{ station.station }}</span>
+                          <span
+                            v-if="isWheelchairAccessible(station)"
+                            class="wheelchair-icon accessible"
+                            title="Accessible aux personnes à mobilité réduite"
+                          >
+                            ♿
+                          </span>
+                          <span
+                            v-else
+                            class="wheelchair-icon not-accessible"
+                            title="Non accessible aux personnes à mobilité réduite"
+                          >
+                            🚫
+                          </span>
+                        </div>
+                        <div class="station-time" v-if="stationIndex > 0">
+                          {{ station.time || "" }}
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
 
-                <!-- Correspondance -->
-                <div
-                  v-if="lineIndex < cleanedTrip.length - 1"
-                  class="connection"
-                >
-                  <div class="connection-marker"></div>
-                  <div class="connection-info">
-                    <span>Correspondance</span>
-                    <span class="connection-time"></span>
+                  <!-- Correspondance -->
+                  <div
+                    v-if="lineIndex < cleanedTrip.length - 1"
+                    class="connection"
+                  >
+                    <div class="connection-marker"></div>
+                    <div class="connection-info">
+                      <span>Correspondance</span>
+                      <span class="connection-time"></span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -277,9 +317,10 @@ const expandedLines = ref([]);
 const selectedDeparture = ref(null);
 const selectedArrival = ref(null);
 const showTripDetails = ref(false);
+const selectedTripIndex = ref(0); // Track which trip is currently selected
 
 onMounted(async () => {
-  const response = await fetch("http://127.0.0.1:8000/station_ids");
+  const response = await fetch("http://127.0.0.1:8001/station_ids");
   const result = await response.json();
   data.value = result;
   allStations.value = result.stations;
@@ -310,23 +351,61 @@ const filteredStations2 = computed(() => {
 });
 
 const journeyStats = computed(() => {
-  if (!trip.value || !trip.value.stations)
-    return { totalStations: 0, changes: 0 };
+  // Handle new format (multiple trips)
+  if (trip.value && trip.value.trips && trip.value.trips.length > 0) {
+    const currentTripData = trip.value.trips[selectedTripIndex.value];
+    if (!currentTripData || !currentTripData.stations) return { totalStations: 0, changes: 0 };
 
-  const stationSet = new Set();
-
-  trip.value.stations.forEach((lineObj) => {
-    const stations = Object.values(lineObj)[0];
-    stations.forEach((station) => {
-      stationSet.add(station.id);
+    const stationSet = new Set();
+    currentTripData.stations.forEach((lineObj) => {
+      const stations = Object.values(lineObj)[0];
+      stations.forEach((station) => {
+        stationSet.add(station.id);
+      });
     });
-  });
 
-  const totalStations = stationSet.size;
-  const changes = trip.value.stations.length - 1;
+    const totalStations = stationSet.size;
+    const changes = currentTripData.stations.length - 1;
+    return { totalStations, changes };
+  }
+  
+  // Handle old format (single trip)
+  if (trip.value && trip.value.stations) {
+    const stationSet = new Set();
+    trip.value.stations.forEach((lineObj) => {
+      const stations = Object.values(lineObj)[0];
+      stations.forEach((station) => {
+        stationSet.add(station.id);
+      });
+    });
 
-  return { totalStations, changes };
+    const totalStations = stationSet.size;
+    const changes = trip.value.stations.length - 1;
+    return { totalStations, changes };
+  }
+
+  return { totalStations: 0, changes: 0 };
 });
+
+// Add computed property for current trip
+const currentTrip = computed(() => {
+  // Handle new format (multiple trips)
+  if (trip.value && trip.value.trips && trip.value.trips.length > 0) {
+    return trip.value.trips[selectedTripIndex.value];
+  }
+  
+  // Handle old format (single trip) - return the trip itself
+  if (trip.value && trip.value.stations) {
+    return trip.value;
+  }
+  
+  return null;
+});
+
+// Add function to check wheelchair accessibility
+const isWheelchairAccessible = (station) => {
+  return station.wheelchair_accessible === 1;
+};
 
 function filterStations(field) {
   if (field === 1) {
@@ -366,7 +445,7 @@ function getLastStation(lineObj) {
 }
 
 async function call_trip(value1, value2) {
-  const res = await fetch("http://127.0.0.1:8000/calculate_trip", {
+  const res = await fetch("http://127.0.0.1:8001/calculate_trip", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -374,13 +453,25 @@ async function call_trip(value1, value2) {
     body: JSON.stringify({ start: value1, end: value2 }),
   });
   trip.value = await res.json();
-  expandedLines.value = new Array(trip.value.stations.length).fill(false);
+  
+  // Handle new format (multiple trips)
+  if (trip.value.trips && trip.value.trips.length > 0) {
+    expandedLines.value = new Array(trip.value.trips[0].stations.length).fill(false);
+    selectedTripIndex.value = 0; // Reset to first trip
+  }
+  // Handle old format (single trip)
+  else if (trip.value.stations) {
+    expandedLines.value = new Array(trip.value.stations.length).fill(false);
+    selectedTripIndex.value = 0;
+  }
+  
   showTripDetails.value = false;
 }
 
 function getColorCode(lineName) {
   const normalized = lineName.trim().toLowerCase().replace(/\s+/g, "-");
   const colors = {
+    // Metro lines
     "metro-1": "#FFCD00",
     "metro-2": "#003CA6",
     "metro-3": "#837902",
@@ -397,6 +488,12 @@ function getColorCode(lineName) {
     "metro-12": "#007852",
     "metro-13": "#6EC4E8",
     "metro-14": "#62259D",
+    // RER lines
+    "rer-a": "#E3051C",
+    "rer-b": "#5291CE", 
+    "rer-c": "#FFCE00",
+    "rer-d": "#00814F",
+    "rer-e": "#C04191"
   };
   return colors[normalized] || "#000";
 }
@@ -416,10 +513,20 @@ function swapStations() {
 }
 
 const cleanedTrip = computed(() => {
-  if (!trip.value || !trip.value.stations) return [];
+  let stations = null;
+  
+  // Handle new format (multiple trips)
+  if (currentTrip.value && currentTrip.value.stations) {
+    stations = currentTrip.value.stations;
+  }
+  // Handle old format (single trip)
+  else if (trip.value && trip.value.stations) {
+    stations = trip.value.stations;
+  }
+  
+  if (!stations) return [];
 
   const cleaned = [];
-  const stations = trip.value.stations;
 
   for (let i = 0; i < stations.length; i++) {
     const current = stations[i];
@@ -454,6 +561,14 @@ const cleanedTrip = computed(() => {
 
   return cleaned;
 });
+
+function selectTrip(index) {
+  selectedTripIndex.value = index;
+  if (trip.value.trips && trip.value.trips[index] && trip.value.trips[index].stations) {
+    expandedLines.value = new Array(trip.value.trips[index].stations.length).fill(false);
+  }
+  showTripDetails.value = false;
+}
 
 function toggleTripDetails() {
   showTripDetails.value = !showTripDetails.value;
@@ -886,6 +1001,102 @@ body {
   height: auto;
   max-height: 600px;
   object-fit: contain;
+}
+
+/* Trip options selector styles */
+.trip-options {
+  margin-bottom: 24px;
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: var(--card-shadow);
+}
+
+.options-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-color);
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+.trip-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.trip-option-button {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  background: var(--background-light);
+  border: 2px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+  font-family: inherit;
+}
+
+.trip-option-button:hover {
+  background: #e8f0fe;
+  border-color: var(--primary-color);
+}
+
+.trip-option-button.active {
+  background: #e8f0fe;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 1px var(--primary-color);
+}
+
+.trip-option-info {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+}
+
+.trip-duration {
+  font-weight: 600;
+  color: var(--primary-color);
+  font-size: 16px;
+}
+
+.trip-changes {
+  font-size: 14px;
+  color: var(--light-text);
+}
+
+/* Wheelchair accessibility styles */
+.station-name-with-accessibility {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.wheelchair-icon {
+  font-size: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.wheelchair-icon.accessible {
+  color: #4caf50;
+}
+
+.wheelchair-icon.not-accessible {
+  color: #f44336;
+  filter: grayscale(100%);
+}
+
+/* Current trip section */
+.current-trip {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: var(--card-shadow);
 }
 
 @keyframes fadeIn {

@@ -24,3 +24,7 @@ fastapi-backend/app/functions/container_pkl_files/max_len_results.pkl
 fastapi-backend/app/functions/container_pkl_files/station_info_cache.pkl
 fastapi-backend/app/functions/container_pkl_files/stop_data.pkl
 fastapi-backend/app/functions/container_pkl_files/trajects_per_metro.pkl
+fastapi-backend/app/functions/container_pkl_files/all_metro_ids.pkl
+front_end/src/views/Home.vue
+fastapi-backend/app/functions/container_pkl_files/rer_connections.pkl
+fastapi-backend/app/functions/container_pkl_files/RER_detailed_trips.pkl
