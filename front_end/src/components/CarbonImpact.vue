@@ -26,6 +26,10 @@
   
   const props = defineProps({
     trip: Object,
+    selectedTripIndex: {
+      type: Number,
+      default: 0
+    }
   });
   
   const showPopup = ref(false);
@@ -40,7 +44,8 @@
   const hasValidTrip = computed(() => {
     // Check new format (multiple trips)
     if (props.trip && props.trip.trips && props.trip.trips.length > 0) {
-      return props.trip.trips[0].stations && props.trip.trips[0].stations.length > 0;
+      const selectedTrip = props.trip.trips[props.selectedTripIndex];
+      return selectedTrip && selectedTrip.stations && selectedTrip.stations.length > 0;
     }
     // Check old format (single trip)
     return props.trip && props.trip.stations && props.trip.stations.length > 0;
@@ -49,12 +54,12 @@
   const totalStations = computed(() => {
     if (!hasValidTrip.value) return 0;
     
-    // Handle new format (multiple trips) - use first trip for carbon calculation
+    // Handle new format (multiple trips) - use selected trip for carbon calculation
     if (props.trip.trips && props.trip.trips.length > 0) {
-      const firstTrip = props.trip.trips[0];
-      if (firstTrip.stations) {
+      const selectedTrip = props.trip.trips[props.selectedTripIndex];
+      if (selectedTrip && selectedTrip.stations) {
         const stationSet = new Set();
-        firstTrip.stations.forEach((lineObj) => {
+        selectedTrip.stations.forEach((lineObj) => {
           const stations = Object.values(lineObj)[0];
           stations.forEach((station) => {
             stationSet.add(station.id);

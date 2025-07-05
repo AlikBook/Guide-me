@@ -119,7 +119,7 @@
                 </svg>
               </button>
               <NetworkAnalysis />
-              <CarbonImpact :trip="trip" />
+              <CarbonImpact :trip="trip" :selectedTripIndex="selectedTripIndex" />
             </div>
           </div>
 
