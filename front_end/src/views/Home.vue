@@ -320,7 +320,7 @@ const showTripDetails = ref(false);
 const selectedTripIndex = ref(0); // Track which trip is currently selected
 
 onMounted(async () => {
-  const response = await fetch("http://127.0.0.1:8001/station_ids");
+  const response = await fetch("http://127.0.0.1:8000/station_ids");
   const result = await response.json();
   data.value = result;
   allStations.value = result.stations;
@@ -445,7 +445,7 @@ function getLastStation(lineObj) {
 }
 
 async function call_trip(value1, value2) {
-  const res = await fetch("http://127.0.0.1:8001/calculate_trip", {
+  const res = await fetch("http://127.0.0.1:8000/calculate_trip", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
