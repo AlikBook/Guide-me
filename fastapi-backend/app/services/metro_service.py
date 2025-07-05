@@ -17,11 +17,12 @@ def get_trip(start: int, end: int, data: dict):
         id_to_index = data["id_to_index"]
         rer_stop_data = data["rer_stop_data"]
         rer_with_line = data["rer_with_line"]
+        complete_data = data.get("complete_data")  # Get transfer data
         
         # Calculate path using functionsV3
         trips = calculate_path_and_time(
             start, end, edges, metro_info, all_station_ids, 
-            id_to_index, rer_stop_data, rer_with_line
+            id_to_index, rer_stop_data, rer_with_line, complete_data
         )
         
         # Return all trips with additional metadata

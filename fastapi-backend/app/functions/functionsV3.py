@@ -425,13 +425,20 @@ def is_station_transfer_consistent(stations_by_line):
             prev_last_station = stations[-1]["station"]
         return True
 
-def calculate_path_and_time(start_id, end_id, edges, metro_info, all_station_ids, id_to_index, rer_stop_data, rer_with_line):
+def calculate_path_and_time(start_id, end_id, edges, metro_info, all_station_ids, id_to_index, rer_stop_data, rer_with_line, complete_data=None):
     k = 10
     paths = get_k_shortest_paths(edges, start_id, end_id, k)
     index_to_id = {idx: stop_id for idx, stop_id in enumerate(all_station_ids)}
 
     list_of_paths = []
     list_of_trips = []
+
+    # Create transfer time lookup dictionary from complete_data
+    transfer_times = {}
+    if complete_data:
+        for id1, id2, time in complete_data:
+            transfer_times[(id1, id2)] = int(time)
+            transfer_times[(id2, id1)] = int(time)  # Make it bidirectional
 
     # Create info mappings for both metro and RER
     metro_id_to_info = {id: (name, line, wheelchair) for id, name, line, wheelchair in metro_info}
@@ -525,10 +532,28 @@ def calculate_path_and_time(start_id, end_id, edges, metro_info, all_station_ids
             prev_line = line
             prev_line_type = line_type
 
-        # Convert segments to the expected format
+        # Convert segments to the expected format and add transfer times
         stations_list = []
-        for segment in stations_segments:
-            stations_list.append({segment["line_key"]: segment["stations"]})
+        for i, segment in enumerate(stations_segments):
+            segment_dict = {segment["line_key"]: segment["stations"]}
+            
+            # Add transfer time if this is not the first segment
+            if i > 0:
+                # Get the last station of previous segment and first station of current segment
+                prev_segment = stations_segments[i-1]
+                prev_last_station_id = prev_segment["stations"][-1]["id"]
+                current_first_station_id = segment["stations"][0]["id"]
+                
+                # Convert index-based IDs back to actual station IDs
+                prev_station_actual_id = index_to_id[int(prev_last_station_id)]
+                current_station_actual_id = index_to_id[int(current_first_station_id)]
+                
+                # Look up transfer time
+                transfer_time = transfer_times.get((prev_station_actual_id, current_station_actual_id))
+                if transfer_time:
+                    segment_dict["transfer_time"] = f"{transfer_time // 60} min {transfer_time % 60} sec"
+            
+            stations_list.append(segment_dict)
 
         var_return = {
             "total_time": f"{int(cost // 60)} minutes and {int(cost % 60)} seconds",

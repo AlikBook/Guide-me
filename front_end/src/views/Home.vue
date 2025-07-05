@@ -139,7 +139,7 @@
                   <div class="trip-option-info">
                     <span class="trip-duration">{{ tripOption.total_time }}</span>
                     <span class="trip-changes">
-                      {{ tripOption.stations.length - 1 }} changement{{ tripOption.stations.length - 1 > 1 ? 's' : '' }}
+                      {{ calculateChangesForTrip(tripOption) }} changement{{ calculateChangesForTrip(tripOption) > 1 ? 's' : '' }}
                     </span>
                   </div>
                 </button>
@@ -275,7 +275,9 @@
                     <div class="connection-marker"></div>
                     <div class="connection-info">
                       <span>Correspondance</span>
-                      <span class="connection-time"></span>
+                      <span class="connection-time" v-if="getTransferTime(lineIndex + 1)">
+                        {{ getTransferTime(lineIndex + 1) }}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -317,7 +319,7 @@ const expandedLines = ref([]);
 const selectedDeparture = ref(null);
 const selectedArrival = ref(null);
 const showTripDetails = ref(false);
-const selectedTripIndex = ref(0); // Track which trip is currently selected
+const selectedTripIndex = ref(0); 
 
 onMounted(async () => {
   const response = await fetch("http://127.0.0.1:8000/station_ids");
@@ -351,40 +353,26 @@ const filteredStations2 = computed(() => {
 });
 
 const journeyStats = computed(() => {
-  // Handle new format (multiple trips)
-  if (trip.value && trip.value.trips && trip.value.trips.length > 0) {
-    const currentTripData = trip.value.trips[selectedTripIndex.value];
-    if (!currentTripData || !currentTripData.stations) return { totalStations: 0, changes: 0 };
+  // Use cleanedTrip data instead of raw stations data
+  if (!cleanedTrip.value || cleanedTrip.value.length === 0) {
+    return { totalStations: 0, changes: 0 };
+  }
 
-    const stationSet = new Set();
-    currentTripData.stations.forEach((lineObj) => {
-      const stations = Object.values(lineObj)[0];
+  const stationSet = new Set();
+  cleanedTrip.value.forEach((lineObj) => {
+    // Get the stations array, filtering out transfer_time
+    const lineKey = Object.keys(lineObj).find(key => key !== 'transfer_time');
+    if (lineKey) {
+      const stations = lineObj[lineKey];
       stations.forEach((station) => {
         stationSet.add(station.id);
       });
-    });
+    }
+  });
 
-    const totalStations = stationSet.size;
-    const changes = currentTripData.stations.length - 1;
-    return { totalStations, changes };
-  }
-  
-  // Handle old format (single trip)
-  if (trip.value && trip.value.stations) {
-    const stationSet = new Set();
-    trip.value.stations.forEach((lineObj) => {
-      const stations = Object.values(lineObj)[0];
-      stations.forEach((station) => {
-        stationSet.add(station.id);
-      });
-    });
-
-    const totalStations = stationSet.size;
-    const changes = trip.value.stations.length - 1;
-    return { totalStations, changes };
-  }
-
-  return { totalStations: 0, changes: 0 };
+  const totalStations = stationSet.size;
+  const changes = cleanedTrip.value.length - 1; // Use cleaned data length
+  return { totalStations, changes };
 });
 
 // Add computed property for current trip
@@ -442,6 +430,60 @@ function selectStation(station, field) {
 function getLastStation(lineObj) {
   const stations = Object.values(lineObj)[0];
   return stations[stations.length - 1];
+}
+
+function calculateChangesForTrip(tripOption) {
+  if (!tripOption || !tripOption.stations) return 0;
+  
+  // Apply the same cleaning logic as cleanedTrip for this specific trip
+  const stations = tripOption.stations;
+  const cleaned = [];
+
+  for (let i = 0; i < stations.length; i++) {
+    const current = stations[i];
+    // Get the line data, filtering out transfer_time
+    const lineKey = Object.keys(current).find(key => key !== 'transfer_time');
+    if (!lineKey) continue;
+    
+    const currentLine = current[lineKey];
+    const isSingleStation = currentLine.length === 1;
+    const stationName = currentLine[0].station;
+
+    const prev = stations[i - 1];
+    const next = stations[i + 1];
+
+    const prevLineKey = prev ? Object.keys(prev).find(key => key !== 'transfer_time') : null;
+    const nextLineKey = next ? Object.keys(next).find(key => key !== 'transfer_time') : null;
+
+    const prevStations = prev && prevLineKey ? prev[prevLineKey] : null;
+    const nextStations = next && nextLineKey ? next[nextLineKey] : null;
+
+    const prevEnd = prevStations && prevStations.length ? prevStations[prevStations.length - 1].station : null;
+    const nextStart = nextStations && nextStations.length ? nextStations[0].station : null;
+
+    if (isSingleStation && (stationName === prevEnd || stationName === nextStart)) {
+      continue;
+    }
+
+    cleaned.push(current);
+  }
+
+  return Math.max(0, cleaned.length - 1);
+}
+
+function getTransferTime(lineIndex) {
+  // Use cleanedTrip instead of raw stations data
+  if (!cleanedTrip.value || lineIndex >= cleanedTrip.value.length) return null;
+  
+  // Get the line segment at the specified index from cleanedTrip
+  const lineSegment = cleanedTrip.value[lineIndex];
+  
+  // Check if this segment has transfer_time property
+  if (lineSegment && lineSegment.transfer_time) {
+    return lineSegment.transfer_time;
+  }
+  
+  return null;
 }
 
 async function call_trip(value1, value2) {
