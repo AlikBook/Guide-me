@@ -8,7 +8,6 @@ PICKLE_DIR = os.path.join(os.path.dirname(__file__), "container_pkl_files")
 os.makedirs(PICKLE_DIR, exist_ok=True)
 
 def get_pickle_path(filename):
-    """Helper function to get the full path for pickle files"""
     return os.path.join(PICKLE_DIR, filename)
 
 def create_metro_ids():
@@ -128,7 +127,7 @@ def get_stations_id_and_name_per_metro(trajects_per_metro, list_of_trajet, stop_
     all_metro_stop_info = []
     for stop in stop_data:
         stop_id = stop[0]
-        wheelchair = stop[2] if len(stop) > 2 else 0  # Get wheelchair accessibility
+        wheelchair = stop[2] if len(stop) > 2 else 0 
         for i, metro_trajet in enumerate(list_of_trajet, 1):
             for idx in metro_trajet:
                 key = f"Metro :{i}"
@@ -138,7 +137,6 @@ def get_stations_id_and_name_per_metro(trajects_per_metro, list_of_trajet, stop_
                         if all(existing_id != stop_id for existing_id, *_ in metro_stop_info):
                             metro_stop_info.append((stop_id, stop[1], i, wheelchair))
 
-    # Save to pickle
     with open(pickle_file, "wb") as f:
         pickle.dump(metro_stop_info, f)
     with open(pickle_file2, "wb") as f:
@@ -231,64 +229,42 @@ def get_filtered_metro_ids(connections):
         ids.add(con[1])
     return sorted(ids)
 
-"""def join_all_metro_connections(trajects_per_metro, new_list_trajet, metro_info):
-    connection = get_connections_per_metro(trajects_per_metro, new_list_trajet, metro_info)
-    filtered_metro_ids = get_filtered_metro_ids(connection)
-    
-    # Get RER station data for transfer connections
-    rer_stop_data = get_rer_stop_data()
-    
-    # Read transfers with both metro and RER station IDs
-    my_data = read_transfers(filtered_metro_ids, rer_stop_data)
-    complete_data = connection + my_data
-    return complete_data, filtered_metro_ids"""
+
 
 def join_all_connections(trajects_per_metro, new_list_trajet, metro_info,rer_stop_data):
-    """
-    Combine all metro and RER connections into a unified system
-    Returns: (complete_data, all_station_ids, rer_connections)
-    """
-    # Get metro connections
+    
     metro_connections = get_connections_per_metro(trajects_per_metro, new_list_trajet, metro_info)
     filtered_metro_ids = get_filtered_metro_ids(metro_connections)
     
-    # Get RER data
+    
     rer_connections = get_rer_connections(rer_stop_data)
     rer_station_ids = [stop[0] for stop in rer_stop_data]
     
-    # Combine all station IDs
+    
     all_station_ids = sorted(set(filtered_metro_ids + rer_station_ids))
     
-    # Get transfer connections between metro and RER
+    
     transfer_data = read_transfers(filtered_metro_ids, rer_stop_data)
     
-    # Combine all metro connections and transfers
+    
     complete_metro_data = metro_connections + transfer_data
     
     return complete_metro_data, all_station_ids, rer_connections
 
 def get_edges_and_graph(all_station_ids, complete_data, id_to_index, rer_connections=None):
-    """
-    Create edges and graph for both metro and RER connections
     
-    Args:
-        all_station_ids: List of all station IDs (metro + RER)
-        complete_data: Metro connections data + transfer connections
-        id_to_index: Mapping of station ID to index
-        rer_connections: RER connections data (optional)
-    """
     n = len(all_station_ids)
     graph = [[0 for _ in range(n)] for _ in range(n)]
     edges = []
 
-    # Get RER station IDs to identify transfer connections
+    
     rer_station_ids = set()
     if rer_connections:
         for id1, id2, time in rer_connections:
             rer_station_ids.add(id1)
             rer_station_ids.add(id2)
 
-    # Metro-specific asymmetric edges (only apply to metro-metro connections)
+    
     edges_not_symetric = set()
     metro_asymmetric_pairs = [
         ("462958", "21971"), 
@@ -303,7 +279,6 @@ def get_edges_and_graph(all_station_ids, complete_data, id_to_index, rer_connect
         if id1 in id_to_index and id2 in id_to_index:
             edges_not_symetric.add((id_to_index[id1], id_to_index[id2]))
 
-    # Process metro connections + transfer connections
     for id1, id2, time in complete_data:
         if id1 in id_to_index and id2 in id_to_index:
             i = id_to_index[id1]
@@ -779,13 +754,7 @@ def determine_rer_line_from_context(stop_id, path_idx, path, index_to_id, rer_wi
     return possible_lines[0]
 
 def convert_graph_list_to_dict(matrix, all_station_ids):
-    """
-    Convert adjacency matrix to dictionary format
     
-    Args:
-        matrix: 2D list adjacency matrix from get_edges_and_graph
-        all_station_ids: List of station IDs corresponding to matrix indices
-    """
     graph = {node_id: {} for node_id in all_station_ids}
     n = len(matrix)
     for i in range(n):
@@ -795,9 +764,7 @@ def convert_graph_list_to_dict(matrix, all_station_ids):
     return graph
 
 def is_connected(graph: dict[str, dict[str, int]]):
-    """
-    Check if the graph is connected using DFS
-    """
+    
     if not graph:
         return False
         
@@ -814,9 +781,7 @@ def is_connected(graph: dict[str, dict[str, int]]):
     return len(visited) == len(graph)
 
 def prim_mst(graph: dict[str, dict[str, int]]):
-    """
-    Find Minimum Spanning Tree using Prim's algorithm
-    """
+    
     if not graph:
         return None, []
         
@@ -844,14 +809,7 @@ def prim_mst(graph: dict[str, dict[str, int]]):
         return None, []
 
 def analyze_graph(matrix, all_station_ids, metro_info=None):
-    """
-    Analyze the transport network graph
     
-    Args:
-        matrix: Adjacency matrix from get_edges_and_graph
-        all_station_ids: Station IDs corresponding to matrix indices
-        metro_info: Optional metro station information
-    """
     # Convert matrix to dictionary format for analysis
     graph_dict = convert_graph_list_to_dict(matrix, all_station_ids)
     
