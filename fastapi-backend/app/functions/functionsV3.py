@@ -451,19 +451,18 @@ def calculate_path_and_time(start_id, end_id, edges, metro_info, all_station_ids
         rer_id_to_all_info[id].append((name, line_name, wheelchair))
 
     for cost, path in paths:
-        # Enhanced path validation with better error handling
+        
         if path in list_of_paths:
             continue  
             
         if check_connection(path, index_to_id, metro_info, rer_stop_data):
-                continue  # Skip invalid paths
-        # Additional validation: check for reasonable path length
-        if len(path) > 50:  # Skip extremely long paths
+                continue  
+        
+        if len(path) > 50:  
             continue
 
         list_of_paths.append(path)
 
-        # Pre-determine RER lines for the entire path to ensure consistency
         rer_line_assignments = {}
         for path_idx, idx in enumerate(path):
             stop_id = index_to_id[idx]
@@ -566,16 +565,7 @@ def calculate_path_and_time(start_id, end_id, edges, metro_info, all_station_ids
 
 
 def display_ids(metro_info, all_station_ids, rer_stop_data=None, rer_with_line=None):
-    """
-    Display all station IDs with their information
-    
-    Args:
-        metro_info: Metro station information
-        all_station_ids: List of all station IDs (metro + RER if enabled)
-        rer_stop_data: RER station data (optional)
-        rer_with_line: RER station data with line information (optional)
-        use_rer: Boolean to control whether RER stations are included
-    """
+  
     index_to_id = {idx: stop_id for idx, stop_id in enumerate(all_station_ids)}
     metro_dict = {stop_id: (name, line, wheelchair) for stop_id, name, line, wheelchair in metro_info}
     

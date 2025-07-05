@@ -38,16 +38,19 @@
                     class="suggestions-dropdown"
                   >
                     <li
-                      v-for="station in filteredStations1"
-                      :key="'departure-' + station.id"
-                      @mousedown="selectStation(station, 1)"
+                      v-for="groupedStation in filteredStations1"
+                      :key="'departure-' + groupedStation.station"
+                      @mousedown="selectGroupedStation(groupedStation, 1)"
                       class="suggestion-item"
                     >
                       <div class="station-info">
-                        <span class="station-name">{{ station.station }}</span>
-                        <span class="station-meta"
-                          >ID: {{ station.id }} • Ligne {{ station.line }}</span
-                        >
+                        <span class="station-name">{{ groupedStation.station }}</span>
+                        <span class="station-meta">
+                          {{ groupedStation.lines.join(', ') }}
+                          <span v-if="groupedStation.lines.length > 1" class="multiple-lines">
+                            ({{ groupedStation.lines.length }} lignes)
+                          </span>
+                        </span>
                       </div>
                     </li>
                   </ul>
@@ -89,16 +92,19 @@
                     class="suggestions-dropdown"
                   >
                     <li
-                      v-for="station in filteredStations2"
-                      :key="'arrival-' + station.id"
-                      @mousedown="selectStation(station, 2)"
+                      v-for="groupedStation in filteredStations2"
+                      :key="'arrival-' + groupedStation.station"
+                      @mousedown="selectGroupedStation(groupedStation, 2)"
                       class="suggestion-item"
                     >
                       <div class="station-info">
-                        <span class="station-name">{{ station.station }}</span>
-                        <span class="station-meta"
-                          >ID: {{ station.id }} • Ligne {{ station.line }}</span
-                        >
+                        <span class="station-name">{{ groupedStation.station }}</span>
+                        <span class="station-meta">
+                          {{ groupedStation.lines.join(', ') }}
+                          <span v-if="groupedStation.lines.length > 1" class="multiple-lines">
+                            ({{ groupedStation.lines.length }} lignes)
+                          </span>
+                        </span>
                       </div>
                     </li>
                   </ul>
@@ -331,25 +337,61 @@ onMounted(async () => {
 const filteredStations1 = computed(() => {
   if (!station1Input.value) return [];
   const query = station1Input.value.toLowerCase();
-  return allStations.value
-    .filter(
-      (station) =>
-        station.station.toLowerCase().includes(query) ||
-        station.id.toString().includes(query)
-    )
-    .slice(0, 5);
+  
+  // First filter stations
+  const filtered = allStations.value.filter(
+    (station) =>
+      station.station.toLowerCase().includes(query) ||
+      station.id.toString().includes(query)
+  );
+  
+  // Group by station name
+  const grouped = {};
+  filtered.forEach(station => {
+    const stationName = station.station;
+    if (!grouped[stationName]) {
+      grouped[stationName] = {
+        station: stationName,
+        lines: [],
+        ids: []
+      };
+    }
+    grouped[stationName].lines.push(station.line);
+    grouped[stationName].ids.push(station.id);
+  });
+  
+  // Convert to array and limit results
+  return Object.values(grouped).slice(0, 5);
 });
 
 const filteredStations2 = computed(() => {
   if (!station2Input.value) return [];
   const query = station2Input.value.toLowerCase();
-  return allStations.value
-    .filter(
-      (station) =>
-        station.station.toLowerCase().includes(query) ||
-        station.id.toString().includes(query)
-    )
-    .slice(0, 5);
+  
+  // First filter stations
+  const filtered = allStations.value.filter(
+    (station) =>
+      station.station.toLowerCase().includes(query) ||
+      station.id.toString().includes(query)
+  );
+  
+  // Group by station name
+  const grouped = {};
+  filtered.forEach(station => {
+    const stationName = station.station;
+    if (!grouped[stationName]) {
+      grouped[stationName] = {
+        station: stationName,
+        lines: [],
+        ids: []
+      };
+    }
+    grouped[stationName].lines.push(station.line);
+    grouped[stationName].ids.push(station.id);
+  });
+  
+  // Convert to array and limit results
+  return Object.values(grouped).slice(0, 5);
 });
 
 const journeyStats = computed(() => {
@@ -424,6 +466,29 @@ function selectStation(station, field) {
     station2Input.value = station.station;
     selectedArrival.value = station;
     showSuggestions2.value = false;
+  }
+}
+
+function selectGroupedStation(groupedStation, field) {
+  // For grouped stations, we need to pick one ID from the available options
+  // We'll use the first ID as default, but the backend algorithm will handle finding the best path
+  const selectedId = groupedStation.ids[0];
+  
+  // Find the full station object from allStations for the selected ID
+  const fullStation = allStations.value.find(station => station.id == selectedId);
+  
+  if (fullStation) {
+    if (field === 1) {
+      station1.value = selectedId;
+      station1Input.value = groupedStation.station;
+      selectedDeparture.value = fullStation;
+      showSuggestions1.value = false;
+    } else {
+      station2.value = selectedId;
+      station2Input.value = groupedStation.station;
+      selectedArrival.value = fullStation;
+      showSuggestions2.value = false;
+    }
   }
 }
 
@@ -749,6 +814,12 @@ body {
 .station-meta {
   font-size: 12px;
   color: var(--light-text);
+}
+
+.multiple-lines {
+  font-weight: 600;
+  color: var(--primary-color);
+  margin-left: 8px;
 }
 
 .primary-button {
