@@ -111,6 +111,24 @@
                 </div>
               </div>
 
+              <!-- Time input -->
+              <div class="time-input-container">
+                <div class="time-icon">
+                  <svg viewBox="0 0 24 24" width="20" height="20">
+                    <path
+                      fill="currentColor"
+                      d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M16.2,16.2L11,13V7H12.5V12.2L17,14.7L16.2,16.2Z"
+                    />
+                  </svg>
+                </div>
+                <input
+                  type="time"
+                  v-model="departureTime"
+                  class="time-input"
+                  title="Heure de départ"
+                />
+              </div>
+
               <button
                 @click="call_trip(station1, station2)"
                 class="primary-button"
@@ -147,6 +165,16 @@
                     <span class="trip-changes">
                       {{ calculateChangesForTrip(tripOption) }} changement{{ calculateChangesForTrip(tripOption) > 1 ? 's' : '' }}
                     </span>
+                    <!-- Show wheelchair accessibility -->
+                    <span v-if="tripOption.timing_details && tripOption.timing_details.wheelchair_accessible" 
+                          class="wheelchair-accessible" title="Accessible PMR">
+                      ♿
+                    </span>
+                    <!-- Show wait time if available -->
+                    <span v-if="tripOption.timing_details && tripOption.timing_details.total_wait_time !== undefined" 
+                          class="wait-time" title="Temps d'attente total">
+                      🕐 {{ Math.round(tripOption.timing_details.total_wait_time / 60) }}min
+                    </span>
                   </div>
                 </button>
               </div>
@@ -174,6 +202,44 @@
                     journeyStats.changes > 1 ? "s" : ""
                   }}</span
                 >
+              </div>
+
+              <!-- Journey Time Display -->
+              <div v-if="journeyTimes" class="journey-times">
+                <div class="time-display">
+                  <div class="departure-time">
+                    <span class="time-label">Départ:</span>
+                    <span class="time-value">{{ departureTime }}</span>
+                  </div>
+                  <div class="arrival-time">
+                    <span class="time-label">Arrivée:</span>
+                    <span class="time-value">{{ journeyTimes[journeyTimes.length - 1]?.time }}</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Detailed timing breakdown -->
+              <div v-if="currentTrip && currentTrip.timing_details" class="timing-breakdown">
+                <div class="timing-items">
+                  <div v-if="currentTrip.timing_details.total_travel_time > 0" class="timing-item">
+                    <span class="timing-label">Voyage:</span>
+                    <span class="timing-value">{{ Math.round(currentTrip.timing_details.total_travel_time / 60) }}min</span>
+                  </div>
+                  <div v-if="currentTrip.timing_details.total_wait_time !== undefined" class="timing-item">
+                    <span class="timing-label">Attente:</span>
+                    <span class="timing-value">{{ Math.round(currentTrip.timing_details.total_wait_time / 60) }}min</span>
+                  </div>
+                  <div v-if="currentTrip.timing_details.total_transfer_time !== undefined" class="timing-item">
+                    <span class="timing-label">Correspondances:</span>
+                    <span class="timing-value">{{ Math.round(currentTrip.timing_details.total_transfer_time / 60) }}min</span>
+                  </div>
+                  <div v-if="currentTrip.timing_details.wheelchair_accessible !== undefined" class="timing-item accessibility">
+                    <span class="timing-label">Accessibilité PMR:</span>
+                    <span class="accessibility-status" :class="currentTrip.timing_details.wheelchair_accessible ? 'accessible' : 'not-accessible'">
+                      {{ currentTrip.timing_details.wheelchair_accessible ? '✓ Accessible' : '✗ Non accessible' }}
+                    </span>
+                  </div>
+                </div>
               </div>
 
               <!-- Bloc compact des lignes -->
@@ -211,8 +277,15 @@
                     >
                       {{ Object.keys(lineObj)[0] }}
                     </div>
-                    <div class="line-direction">
-                      Descendre à : {{ getLastStation(lineObj).station }}
+                    <div class="line-info">
+                      <div class="line-direction">
+                        Descendre à : {{ getLastStation(lineObj).station }}
+                      </div>
+                      <div class="line-times">
+                        <span class="line-start-time">{{ getLineStartTime(lineIndex) }}</span>
+                        →
+                        <span class="line-end-time">{{ getLineEndTime(lineIndex) }}</span>
+                      </div>
                     </div>
                   </div>
 
@@ -310,13 +383,14 @@
 <script setup>
 import NetworkAnalysis from '../components/Network-analysis.vue'
 import CarbonImpact from '../components/CarbonImpact.vue'
-import { ref, onMounted, computed } from "vue";
+import { ref, onMounted, computed, watch } from "vue";
 
 const data = ref(null);
 const station1 = ref(0);
 const station2 = ref(0);
 const station1Input = ref("");
 const station2Input = ref("");
+const departureTime = ref("08:30"); // Default departure time
 const trip = ref(null);
 const showSuggestions1 = ref(false);
 const showSuggestions2 = ref(false);
@@ -332,6 +406,13 @@ onMounted(async () => {
   const result = await response.json();
   data.value = result;
   allStations.value = result.stations;
+});
+
+// Watch for departure time changes and recalculate trip if both stations are selected
+watch(departureTime, (newTime) => {
+  if (station1.value && station2.value && trip.value) {
+    call_trip(station1.value, station2.value);
+  }
 });
 
 const filteredStations1 = computed(() => {
@@ -432,6 +513,11 @@ const currentTrip = computed(() => {
   return null;
 });
 
+// Computed property for journey times
+const journeyTimes = computed(() => {
+  return calculateJourneyTimes(currentTrip.value, departureTime);
+});
+
 // Add function to check wheelchair accessibility
 const isWheelchairAccessible = (station) => {
   return station.wheelchair_accessible === 1;
@@ -497,6 +583,41 @@ function getLastStation(lineObj) {
   return stations[stations.length - 1];
 }
 
+function getLineStartTime(lineIndex) {
+  if (!journeyTimes.value || !journeyTimes.value.length || !cleanedTrip.value) return '';
+  
+  // First line starts at departure time
+  if (lineIndex === 0) {
+    return departureTime.value;
+  }
+  
+  // Find the corresponding line change time
+  const lineChangeEvents = journeyTimes.value.filter(event => event.type === 'line_change');
+  if (lineIndex - 1 < lineChangeEvents.length) {
+    return lineChangeEvents[lineIndex - 1].time;
+  }
+  
+  return '';
+}
+
+function getLineEndTime(lineIndex) {
+  if (!journeyTimes.value || !journeyTimes.value.length || !cleanedTrip.value) return '';
+  
+  // If this is the last line, return arrival time
+  if (lineIndex === cleanedTrip.value.length - 1) {
+    const arrivalEvent = journeyTimes.value.find(event => event.type === 'arrival');
+    return arrivalEvent ? arrivalEvent.time : '';
+  }
+  
+  // Otherwise, return the time of the next line change
+  const lineChangeEvents = journeyTimes.value.filter(event => event.type === 'line_change');
+  if (lineIndex < lineChangeEvents.length) {
+    return lineChangeEvents[lineIndex].time;
+  }
+  
+  return '';
+}
+
 function calculateChangesForTrip(tripOption) {
   if (!tripOption || !tripOption.stations) return 0;
   
@@ -551,13 +672,86 @@ function getTransferTime(lineIndex) {
   return null;
 }
 
+// Utility functions for time calculations
+function addSecondsToTime(timeStr, seconds) {
+  const [hours, minutes] = timeStr.split(':').map(Number);
+  const date = new Date();
+  date.setHours(hours, minutes, 0, 0);
+  date.setSeconds(date.getSeconds() + seconds);
+  
+  const newHours = date.getHours().toString().padStart(2, '0');
+  const newMinutes = date.getMinutes().toString().padStart(2, '0');
+  return `${newHours}:${newMinutes}`;
+}
+
+function calculateJourneyTimes(currentTrip, departureTime) {
+  if (!currentTrip || !currentTrip.timing_details || !currentTrip.timing_details.segment_details) {
+    return null;
+  }
+  
+  const segments = currentTrip.timing_details.segment_details;
+  const journeyTimes = [];
+  let currentTime = departureTime.value;
+  
+  // Add departure time
+  journeyTimes.push({
+    type: 'departure',
+    time: currentTime,
+    location: 'Départ'
+  });
+  
+  // Calculate time for each segment
+  for (let i = 0; i < segments.length; i++) {
+    const segment = segments[i];
+    
+    // Add wait time
+    if (segment.wait_time_seconds > 0) {
+      currentTime = addSecondsToTime(currentTime, segment.wait_time_seconds);
+    }
+    
+    // Add travel time
+    currentTime = addSecondsToTime(currentTime, segment.travel_time_seconds);
+    
+    // Add line change time if not the last segment
+    if (i < segments.length - 1) {
+      const nextSegment = segments[i + 1];
+      journeyTimes.push({
+        type: 'line_change',
+        time: currentTime,
+        location: `Changement vers ${nextSegment.line}`,
+        transfer_time: segment.transfer_time_seconds || 0,
+        from_line: segment.line,
+        to_line: nextSegment.line
+      });
+      
+      // Add transfer time if it exists
+      if (segment.transfer_time_seconds > 0) {
+        currentTime = addSecondsToTime(currentTime, segment.transfer_time_seconds);
+      }
+    }
+  }
+  
+  // Add arrival time
+  journeyTimes.push({
+    type: 'arrival',
+    time: currentTime,
+    location: 'Arrivée'
+  });
+  
+  return journeyTimes;
+}
+
 async function call_trip(value1, value2) {
   const res = await fetch("http://127.0.0.1:8000/calculate_trip", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ start: value1, end: value2 }),
+    body: JSON.stringify({ 
+      start: value1, 
+      end: value2, 
+      actual_time: departureTime.value + ":00" // Convert HH:MM to HH:MM:SS format
+    }),
   });
   trip.value = await res.json();
   
@@ -776,6 +970,34 @@ body {
   border-color: var(--primary-color);
 }
 
+.time-input-container {
+  position: relative;
+  margin-bottom: 12px;
+}
+
+.time-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--light-text);
+}
+
+.time-input {
+  width: 100%;
+  padding: 12px 16px 12px 40px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  font-size: 16px;
+  transition: border-color 0.2s;
+  background: white;
+}
+
+.time-input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+}
+
 .suggestions-dropdown {
   position: absolute;
   top: 100%;
@@ -878,6 +1100,102 @@ body {
   color: var(--light-text);
 }
 
+.journey-times {
+  margin-bottom: 16px;
+  padding: 12px;
+  background: linear-gradient(135deg, var(--primary-color), #4a4ab8);
+  border-radius: 8px;
+  color: white;
+}
+
+.time-display {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.departure-time,
+.arrival-time {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.time-label {
+  font-size: 12px;
+  opacity: 0.8;
+  font-weight: 500;
+}
+
+.time-value {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.timing-breakdown {
+  margin-bottom: 16px;
+  padding: 12px;
+  background: var(--background-light);
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+}
+
+.timing-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.timing-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.timing-label {
+  color: var(--light-text);
+  font-weight: 500;
+}
+
+.timing-value {
+  color: var(--text-color);
+  font-weight: 600;
+}
+
+.timing-item.accessibility {
+  flex: 1 0 100%;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-color);
+}
+
+.accessibility-status.accessible {
+  color: #28a745;
+  font-weight: 600;
+}
+
+.accessibility-status.not-accessible {
+  color: #dc3545;
+  font-weight: 600;
+}
+
+.wheelchair-accessible {
+  color: #28a745;
+  font-size: 16px;
+  margin-left: 4px;
+}
+
+.wait-time {
+  font-size: 11px;
+  color: var(--light-text);
+  background: rgba(255, 193, 7, 0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: 4px;
+}
+
 /* Styles pour l'affichage compact */
 .compact-lines-container {
   display: flex;
@@ -940,9 +1258,32 @@ body {
   margin-bottom: 12px;
 }
 
+.line-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
 .line-direction {
   font-size: 14px;
   color: var(--light-text);
+}
+
+.line-times {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--primary-color);
+  font-weight: 600;
+}
+
+.line-start-time,
+.line-end-time {
+  background: rgba(47, 47, 126, 0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
 }
 
 .stations-list {

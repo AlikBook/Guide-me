@@ -7,7 +7,7 @@ from app.functions.functionsV3 import (
     get_edges_and_graph, 
     get_rer_stop_data
 )
-from app.functions.reads_and_pickles import read_and_save_stops
+from app.functions.reads_and_pickles import read_and_save_stops, get_detailed_trips_for_RER, get_RER_trips
 
 def load_all_data():
     """Load all necessary data for the transport network on startup"""
@@ -17,6 +17,10 @@ def load_all_data():
     stops_data = read_and_save_stops()
     trajects_per_metro = get_trajets_for_metro()
     list_of_trajet = get_max_len(trajects_per_metro)
+    
+    # Load RER trajectory data
+    rer_trajects = get_detailed_trips_for_RER()
+    rer_filtered_trips = get_RER_trips()
     
     # Get metro station information
     metro_info, all_metro_info = get_stations_id_and_name_per_metro(
@@ -51,5 +55,9 @@ def load_all_data():
         "rer_stop_data": rer_stop_data,
         "rer_with_line": rer_with_line,
         "complete_data": complete_data,
-        "rer_connections": rer_connections
+        "rer_connections": rer_connections,
+        "trajects_per_metro": trajects_per_metro,
+        "rer_trajects": rer_trajects,
+        "rer_filtered_trips": rer_filtered_trips,
+        "list_of_trajet": list_of_trajet
     }

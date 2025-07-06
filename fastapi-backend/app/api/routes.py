@@ -7,12 +7,13 @@ router = APIRouter()
 class TripRequest(BaseModel):
     start: int
     end: int
+    actual_time: str = "8:30:00"  # Default time if not provided
 
 @router.post("/calculate_trip")
 async def calculate_trip_endpoint(request_body: TripRequest, request: Request):
     try:
         data = request.app.state.metro_data
-        return get_trip(request_body.start, request_body.end, data)
+        return get_trip(request_body.start, request_body.end, data, request_body.actual_time)
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 

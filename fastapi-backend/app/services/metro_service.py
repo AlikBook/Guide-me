@@ -1,13 +1,13 @@
 from fastapi import HTTPException
 from app.functions.functionsV3 import (
-    calculate_path_and_time,
+    calculate_path_and_time_with_realistic_timing,
     display_ids,
     analyze_graph
 )
 
-def get_trip(start: int, end: int, data: dict):
+def get_trip(start: int, end: int, data: dict, actual_time: str = "8:30:00"):
     """
-    Calculate trip between two stations using preloaded data
+    Calculate trip between two stations using preloaded data with realistic timing
     """
     try:
         # Extract all necessary data from the preloaded data dictionary
@@ -17,12 +17,18 @@ def get_trip(start: int, end: int, data: dict):
         id_to_index = data["id_to_index"]
         rer_stop_data = data["rer_stop_data"]
         rer_with_line = data["rer_with_line"]
-        complete_data = data.get("complete_data")  # Get transfer data
+        complete_data = data.get("complete_data")
+        trajects_per_metro = data.get("trajects_per_metro")
+        rer_trajects = data.get("rer_trajects")
+        rer_filtered_trips = data.get("rer_filtered_trips")
+        list_of_trajet = data.get("list_of_trajet")
         
-        # Calculate path using functionsV3
-        trips = calculate_path_and_time(
+        # Calculate path using the new realistic timing function
+        trips = calculate_path_and_time_with_realistic_timing(
             start, end, edges, metro_info, all_station_ids, 
-            id_to_index, rer_stop_data, rer_with_line, complete_data
+            id_to_index, rer_stop_data, rer_with_line, 
+            actual_time, complete_data, trajects_per_metro, 
+            rer_trajects, rer_filtered_trips, list_of_trajet
         )
         
         # Return all trips with additional metadata
