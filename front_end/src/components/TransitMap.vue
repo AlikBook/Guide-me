@@ -58,29 +58,23 @@
       </div>
     </div>
 
-    <div class="map-controls">
-      <button @click="resetView" class="map-button" title="Réinitialiser la vue">
-        <svg viewBox="0 0 24 24" width="20" height="20">
+    <div class="map-controls">      <button @click="resetView" class="map-button" title="Réinitialiser la vue">
+        <svg viewBox="0 0 24 24" width="16" height="16">
           <path fill="currentColor" d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M18,11H13L14.5,9.5L13.08,8.08L12,9.16L10.92,8.08L9.5,9.5L11,11H6V13H11L9.5,14.5L10.92,15.92L12,14.84L13.08,15.92L14.5,14.5L13,13H18V11Z"/>
         </svg>
       </button>
       <button @click="toggleTrajectory" class="map-button" title="Afficher/Masquer trajet" v-if="selectedTrip">
-        <svg viewBox="0 0 24 24" width="20" height="20">
+        <svg viewBox="0 0 24 24" width="16" height="16">
           <path fill="currentColor" d="M9,5A4,4 0 0,1 13,9A4,4 0 0,1 9,13A4,4 0 0,1 5,9A4,4 0 0,1 9,5M9,15C11.67,15 17,16.34 17,19V21H1V19C1,16.34 6.33,15 9,15M16.76,5.36L18.18,6.78L12.95,12L18.18,17.22L16.76,18.64L10.54,12.42L16.76,5.36Z"/>
         </svg>
       </button>
-      <button @click="showRouteInfo = !showRouteInfo" class="map-button" title="Infos trajet" v-if="selectedTrip">
-        <svg viewBox="0 0 24 24" width="20" height="20">
-          <path fill="currentColor" d="M13,9H11V7H13M13,17H11V11H13M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z"/>
-        </svg>
-      </button>
       <button @click="toggleLegend" class="map-button" title="Afficher/Masquer légende">
-        <svg viewBox="0 0 24 24" width="20" height="20">
+        <svg viewBox="0 0 24 24" width="16" height="16">
           <path fill="currentColor" d="M9,12L11,14L15,10L20,15H4M2,6H14L16,8H20V6C20,4.89 19.1,4 18,4H14L12,2H4A2,2 0 0,0 2,4V6Z"/>
         </svg>
       </button>
       <button @click="showHelp = !showHelp" class="map-button" title="Aide">
-        <svg viewBox="0 0 24 24" width="20" height="20">
+        <svg viewBox="0 0 24 24" width="16" height="16">
           <path fill="currentColor" d="M11,18H13V16H11V18M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,20C7.59,20 4,16.41 4,12C4,7.59 7.59,4 12,4C16.41,4 20,7.59 20,12C20,16.41 16.41,20 12,20M12,6A4,4 0 0,0 8,10H10A2,2 0 0,1 12,8A2,2 0 0,1 14,10C14,12 11,11.75 11,15H13C13,12.75 16,12.5 16,10A4,4 0 0,0 12,6Z"/>
         </svg>
       </button>
@@ -299,9 +293,20 @@ export default {
         this.stationCoordinates = data.stations;
         this.lineDefinitions = data.lines;
         
-        // Load stations and connections
-        this.updateStationMarkers();
+        // Always load metro and RER lines first to show the network
         this.addConnectionLines();
+        
+        // Also try fallback method to ensure lines are visible
+        this.drawLinesFallback();
+        
+        // Then load station markers if available
+        this.updateStationMarkers();
+        
+        // If allConnections prop is available, use it as fallback
+        if (this.allConnections && this.allConnections.length > 0) {
+          console.log('Using allConnections prop as additional data:', this.allConnections.length);
+          this.drawLinesFromConnections();
+        }
         
       } catch (error) {
         console.error('Error loading network data:', error);
@@ -366,13 +371,23 @@ export default {
 
     async drawMetroLines() {
       try {
+        console.log('Drawing metro lines...');
         // Get line topology from backend
         const response = await fetch('http://127.0.0.1:8000/station_coordinates');
         const data = await response.json();
         
+        // Get all stations from backend to draw lines
+        const stationsResponse = await fetch('http://127.0.0.1:8000/station_ids');
+        const stationsData = await stationsResponse.json();
+        const allStationsData = stationsData.stations || [];
+        
+        console.log('Available lines:', Object.keys(data.lines));
+        console.log('Available stations:', allStationsData.length);
+        
         // Draw lines for each metro/RER line using topology
         Object.entries(data.lines).forEach(([lineId, lineInfo]) => {
-          this.drawSingleLine(lineId, lineInfo);
+          console.log(`Drawing line ${lineId}:`, lineInfo);
+          this.drawSingleLineWithData(lineId, lineInfo, allStationsData);
         });
         
       } catch (error) {
@@ -380,6 +395,63 @@ export default {
         // Fallback to grouping by station data
         this.drawLinesFallback();
       }
+    },
+
+    drawSingleLineWithData(lineId, lineInfo, allStationsData) {
+      console.log(`Processing line ${lineId}...`);
+      // Get stations for this line from backend data
+      const lineStations = [];
+      
+      allStationsData.forEach(station => {
+        const stationName = station.station_name || station.station;
+        const coords = this.stationCoordinates[stationName];
+        const stationLine = station.line;
+        
+        if (coords && stationLine === lineId) {
+          lineStations.push({
+            name: stationName,
+            lat: coords[0],
+            lng: coords[1],
+            order: this.getStationOrder(stationName, lineId)
+          });
+        }
+      });
+
+      console.log(`Line ${lineId} has ${lineStations.length} stations`);
+      if (lineStations.length < 2) return;
+
+      // Sort stations by their order on the line
+      lineStations.sort((a, b) => a.order - b.order);
+      
+      const coordinates = lineStations.map(station => [station.lat, station.lng]);
+      const color = lineInfo.color || this.getLineColor(lineId);
+      
+      console.log(`Drawing line ${lineId} with color ${color} and ${coordinates.length} coordinates`);
+      
+      const polyline = L.polyline(coordinates, {
+        color: color,
+        weight: 4,
+        opacity: 0.8,
+        className: `line-${lineId}`
+      }).addTo(this.map);
+      
+      // Add line label
+      if (coordinates.length > 0) {
+        const midPoint = coordinates[Math.floor(coordinates.length / 2)];
+        const lineLabel = L.marker(midPoint, {
+          icon: L.divIcon({
+            className: 'line-label',
+            html: `<div class="line-badge" style="background-color: ${color};">${lineInfo.type === 'rer' ? 'RER ' : ''}${lineId}</div>`,
+            iconSize: [30, 20],
+            iconAnchor: [15, 10]
+          })
+        }).addTo(this.map);
+        
+        this.connectionLines.push(lineLabel);
+      }
+      
+      this.connectionLines.push(polyline);
+      console.log(`Successfully added line ${lineId} to map`);
     },
 
     drawSingleLine(lineId, lineInfo) {
@@ -443,46 +515,60 @@ export default {
     },
 
     drawLinesFallback() {
+      console.log('Using fallback line drawing method...');
       // Fallback method - group stations by line
       const lineStations = {};
       
-      this.stations.forEach(station => {
+      // Use either this.stations or this.allConnections
+      const stationsData = this.stations.length > 0 ? this.stations : this.allConnections;
+      console.log('Drawing lines from stations data:', stationsData.length, 'stations');
+      
+      stationsData.forEach(station => {
         const stationName = station.station_name || station.station;
         const coords = this.stationCoordinates[stationName];
-        const lines = station.lines || [];
+        const lines = station.lines || [station.line]; // Handle both formats
         
         if (coords) {
           lines.forEach(line => {
-            if (!lineStations[line]) {
-              lineStations[line] = [];
+            if (line && line !== 'undefined') {
+              if (!lineStations[line]) {
+                lineStations[line] = [];
+              }
+              lineStations[line].push({
+                name: stationName,
+                lat: coords[0],
+                lng: coords[1]
+              });
             }
-            lineStations[line].push({
-              name: stationName,
-              lat: coords[0],
-              lng: coords[1]
-            });
           });
         }
       });
 
+      console.log('Found lines:', Object.keys(lineStations));
+
       // Draw lines for each metro/RER line
       Object.entries(lineStations).forEach(([line, stations]) => {
-        if (stations.length < 2) return;
-        
-        // Sort stations by geographical position to create a logical line
-        stations.sort((a, b) => a.lat - b.lat);
-        
-        const coordinates = stations.map(station => [station.lat, station.lng]);
-        const color = this.getLineColor(line);
-        
-        const polyline = L.polyline(coordinates, {
-          color: color,
-          weight: 3,
-          opacity: 0.7
-        }).addTo(this.map);
-        
-        this.connectionLines.push(polyline);
+        if (stations.length >= 2) {
+          console.log(`Drawing fallback line ${line} with ${stations.length} stations`);
+          
+          // Sort stations by geographical position to create a logical line
+          stations.sort((a, b) => a.lat - b.lat);
+          
+          const coordinates = stations.map(station => [station.lat, station.lng]);
+          const color = this.getLineColor(line);
+          
+          const polyline = L.polyline(coordinates, {
+            color: color,
+            weight: 3,
+            opacity: 0.7,
+            className: `fallback-line-${line}`
+          }).addTo(this.map);
+          
+          this.connectionLines.push(polyline);
+        }
       });
+      
+      console.log('Fallback line drawing completed. Total lines drawn:', Object.keys(lineStations).length);
     },
 
     generateFallbackPositions() {
@@ -723,6 +809,54 @@ export default {
 
     toggleLegend() {
       this.showLegend = !this.showLegend;
+    },
+
+    drawLinesFromConnections() {
+      console.log('Drawing lines from allConnections...');
+      // Group connections by line
+      const lineGroups = {};
+      
+      this.allConnections.forEach(station => {
+        const stationName = station.station_name || station.station;
+        const coords = this.stationCoordinates[stationName];
+        const lines = station.lines || [];
+        
+        if (coords) {
+          lines.forEach(line => {
+            if (!lineGroups[line]) {
+              lineGroups[line] = [];
+            }
+            lineGroups[line].push({
+              name: stationName,
+              lat: coords[0],
+              lng: coords[1],
+              order: this.getStationOrder(stationName, line)
+            });
+          });
+        }
+      });
+
+      // Draw each line
+      Object.entries(lineGroups).forEach(([lineId, stations]) => {
+        if (stations.length >= 2) {
+          console.log(`Drawing connection line ${lineId} with ${stations.length} stations`);
+          
+          // Sort stations by order
+          stations.sort((a, b) => a.order - b.order);
+          
+          const coordinates = stations.map(station => [station.lat, station.lng]);
+          const color = this.getLineColor(lineId);
+          
+          const polyline = L.polyline(coordinates, {
+            color: color,
+            weight: 3,
+            opacity: 0.7,
+            className: `connection-line-${lineId}`
+          }).addTo(this.map);
+          
+          this.connectionLines.push(polyline);
+        }
+      });
     }
   }
 };
@@ -951,14 +1085,16 @@ export default {
 .map-button {
   background: rgba(255, 255, 255, 0.9);
   border: none;
-  border-radius: 6px;
-  padding: 8px;
+  border-radius: 4px;
+  padding: 6px;
   cursor: pointer;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   transition: all 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 32px;
+  height: 32px;
 }
 
 .map-button:hover {
