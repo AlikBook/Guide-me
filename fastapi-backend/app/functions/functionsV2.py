@@ -3,6 +3,9 @@ import pickle
 from pathlib import Path
 import json
 
+
+global complete_data
+
 BASE_DIR = Path(__file__).resolve().parent
 def create_metro_ids():
     metro_lines = []
@@ -302,6 +305,7 @@ def join_all_metro_connections(trajects_per_metro, new_list_trajet,metro_info):
     connection = get_connections_per_metro(trajects_per_metro,new_list_trajet,metro_info)
     filtered_metro_ids = get_filtered_metro_ids(connection)
     my_data = read_transfers(filtered_metro_ids)
+    global complete_data
     complete_data = connection + my_data
     return complete_data,filtered_metro_ids
 
@@ -459,8 +463,9 @@ def stops_position() -> dict:
             name: <stop_name (str)>,
             lat: <stop_latitude (float)>,
             long: <stop_longitude (float)>,
-            prev: <previous_stop_id (int)>,
+            ref: <stop_reference_id (int)>,
             ligne: <stop_metro_line (int)>
+            refs: [<stops_referenced_ids (int)>]
         },
     }
     """
@@ -473,30 +478,49 @@ def stops_position() -> dict:
 
     if not os.path.exists(pkl_file) or os.path.getsize(pkl_file) == 0:
         print("stop_position_data.pkl not found or empty. Creating it...")
+        com_stops = {}
         trajects_per_metro = get_trajets_for_metro()
         list_of_trajet = get_max_len(trajects_per_metro)
         metro_info = get_stations_id_and_name_per_metro(trajects_per_metro, list_of_trajet) # [ ... , (<stop_id(int)>, <stop_name(str)>, <line_num(int)>), ...]
         concerned_stops = {stop[0]: stop[1:] for stop in metro_info}
+        reference_stops = []
         with open(pathfile,"r", encoding="utf-8") as f:
-            for i, line in enumerate(f,1):
-                if i>1:
-                    line = line.strip().split(",")
-                    stop_id = line[0].split(":")[-1]
+            next(f)
+            for i, line in enumerate(f):
+                line = line.strip().split(",")
+                stop_id = line[0].split(":")[-1]
 
-                    stop_name = line[2]
-                    stop_latitude = line[5]
-                    stop_longitude = line[4]
-                    previous_stop = line[9]
-                    
-                    if stop_id in concerned_stops.keys():
-                        stop_metro_line = concerned_stops[stop_id][1]
-                        return_data[stop_id] = {
-                            "name": stop_name if stop_name != '' else "Unknown",
-                            "lat": stop_latitude if stop_latitude != '' else 0,
-                            "long": stop_longitude if stop_longitude != '' else 0,
-                            "prev": previous_stop if previous_stop != '' else -1,
-                            "line": stop_metro_line if stop_metro_line != '' else 0
-                        }
+                stop_name = line[2]
+                stop_latitude = line[5]
+                stop_longitude = line[4]
+                stop_reference = line[9]
+                
+                if stop_id in concerned_stops.keys():
+                    stop_metro_line = concerned_stops[stop_id][1]
+                    return_data[stop_id] = {
+                        "name": stop_name if stop_name != '' else "Unknown",
+                        "lat": stop_latitude if stop_latitude != '' else 0,
+                        "long": stop_longitude if stop_longitude != '' else 0,
+                        "ref": stop_reference.split(":")[-1] if stop_reference != '' else -1,
+                        "line": stop_metro_line if stop_metro_line != '' else 0,
+                        "refs": []
+                    }
+                    reference_stops.append(stop_reference.split(":")[-1])
+                if stop_reference == '':
+                    com_stops[stop_id] = {
+                        "name": stop_name if stop_name != '' else "Unknown",
+                        "lat": stop_latitude if stop_latitude != '' else 0,
+                        "long": stop_longitude if stop_longitude != '' else 0,
+                        "ref": -1,
+                        "line": 0,
+                        "refs": []
+                    }
+            for k, infos in com_stops.items():
+                if k in reference_stops:
+                    infos["refs"] = [key for key, v in return_data.items() if v["ref"] == k]
+                    if len(infos["refs"]) <= 2:
+                        infos["line"] = return_data[infos["refs"][0]]["line"]
+                    return_data[k] = infos
         with open(pkl_file, "wb") as f:
            pickle.dump(return_data, f)
     else:
@@ -514,10 +538,10 @@ def lines_info(line_type_list:list =['metro']) -> dict:
         {
             <line_name (str)>: 
                 {
-                    id: <line_id(int),
+                    id: <line_id(str),
                     color: <line_color(str)>,
                     tcolor: <text_color(str)>,
-                    type: <line_type_number(int)>,
+                    type: <line_type_number(int)>
                 }
         }
     Types:
@@ -530,11 +554,11 @@ def lines_info(line_type_list:list =['metro']) -> dict:
     pathfile = Path(__file__).parent.parent / "V2_text_files" / "routes.txt"
     pathfile = pathfile.resolve()
 
-    pkl_file = BASE_DIR / "container_pkl_files" / "routes_info_data.pkl"
+    pkl_file = BASE_DIR / "container_pkl_files" / "routes_data.pkl"
     return_data = {}
 
     if not os.path.exists(pkl_file) or os.path.getsize(pkl_file) == 0:
-        print("routes_info_data.pkl not found or empty. Creating it...")
+        print("routes_data.pkl not found or empty. Creating it...")
         
         route_types = {
             "tramway": 0,
@@ -548,19 +572,19 @@ def lines_info(line_type_list:list =['metro']) -> dict:
         route_types_inversed = {v: k for k, v in route_types.items()}
 
         with open(pathfile,"r", encoding="utf-8") as f:
+            next(f)
             for i, line in enumerate(f,1):
-                if i>1:
-                    line = line.strip().split(",")
-                    line_id = line[0].split(":")[-1][3:]
-                    line_type_number = line[5]
+                line = line.strip().split(",")
+                line_id = line[0].split(":")[-1]
+                line_type_number = line[5]
 
-                    if route_types_inversed[int(line_type_number)] in line_type_list:
+                if route_types_inversed[int(line_type_number)] in line_type_list:
 
-                        line_name = line[3]
-                        line_color = line[7]
-                        text_color = line[8]
+                    line_name = line[3]
+                    line_color = line[7]
+                    text_color = line[8]
 
-                        return_data["Lines"][line_name] = {"id": line_id, "color": line_color, "tcolor": text_color, "type": line_type_number}
+                    return_data["Lines"][line_name] = {"id": line_id, "color": line_color, "tcolor": text_color, "type": line_type_number}
         with open(pkl_file, "wb") as f:
            pickle.dump(return_data, f)
     else:
@@ -607,7 +631,133 @@ def geojson_metro_filter(file: dict) -> dict:
 
     return file
 
-def temp_association_stops_lines_traces():
+def courses_info() -> dict:
+    """
+    Fonction qui retourne les infos des parcours entre les stations des transports
+    ------------------
+    return format:
+    {
+        <line_id (str)>:
+        {
+            <shape_id (str)>:
+            {
+                name: <trip_name(str)>,
+                start_id: <stop_id_start(int)>,
+                end_id: <stop_id_end(int)>,
+                trip_id: <trip_id (str)>,
+                dir: <direction (int)>,
+                line_id: <line_id(int)>,
+                bike: <are_bikes_allowed (bool)>,
+                wchair: <is_it_wheelchair_accessible (bool)>
+            }
+        }
+    }
+    """
+
+    pathfile = Path(__file__).parent.parent / "V2_text_files" / "trips.txt"
+    pathfile = pathfile.resolve()
+
+    pkl_file = BASE_DIR / "container_pkl_files" / "courses_data.pkl"
+    return_data = {}
+
+    if not os.path.exists(pkl_file) or os.path.getsize(pkl_file) == 0:
+        print("courses_data.pkl not found or empty. Creating it...")
+
+        trajects_per_metro = get_trajets_for_metro()
+        list_of_trajet = get_max_len(trajects_per_metro)
+
+        concerned_lines = {v["id"]: k for k, v in lines_info()["Lines"].items()}
+        return_data = {k: {} for k in concerned_lines.keys()}
+        lines_trajects = {}
+        for i in range(len(list_of_trajet)): # Création de lines_trajects
+            if i + 1 == 7 or i + 1 == 13:
+                lines_trajects[f"{i+1}_a_1"] = trajects_per_metro[f"Metro :{i+1}"][f"Trajet {list_of_trajet[i][0]}"]
+                lines_trajects[f"{i+1}_r_1"] = trajects_per_metro[f"Metro :{i+1}"][f"Trajet {list_of_trajet[i][1]}"]
+                lines_trajects[f"{i+1}_a_2"] = trajects_per_metro[f"Metro :{i+1}"][f"Trajet {list_of_trajet[i][2]}"]
+                lines_trajects[f"{i+1}_r_2"] = trajects_per_metro[f"Metro :{i+1}"][f"Trajet {list_of_trajet[i][3]}"]
+            else:
+                lines_trajects[f"{i+1}_a"] = trajects_per_metro[f"Metro :{i+1}"][f"Trajet {list_of_trajet[i][0]}"]
+                lines_trajects[f"{i+1}_r"] = trajects_per_metro[f"Metro :{i+1}"][f"Trajet {list_of_trajet[i][1]}"]
+        for p in ("_a", "_r"): # Changement de numéro vers noms exactes des lignes bis
+            lines_trajects["3B" + p] = lines_trajects["15" + p]
+            lines_trajects["7B" + p] = lines_trajects["16" + p]
+            del lines_trajects["15" + p]
+            del lines_trajects["16" + p]
+        for i, v in concerned_lines.items(): # Ajout de l'accès par id de ligne en plus de l'accès par numéro de ligne
+            for p in ("_a", "_r"):
+                if v == "7" or v == "13":
+                    lines_trajects[i+p+"_1"] = lines_trajects[v+p+"_1"]
+                    lines_trajects[i+p+"_2"] = lines_trajects[v+p+"_2"]
+                else:
+                    lines_trajects[i+p] = lines_trajects[v+p]
+
+        with open(pathfile,"r", encoding="utf-8") as f:
+            next(f)
+            for i, line in enumerate(f,1):
+                line = line.strip().split(",")
+                line_id = line[0].split(":")[-1]
+                
+                if line_id in concerned_lines.keys():
+                    shape_id = line_id + '_'
+                    trip_id = line[2]
+                    trip_id = trip_id.split(":")[-1]
+                    trip_name = line[4]
+                    direction = line[5]
+                    are_bikes_allowed = (line[-1] != "0")
+                    is_it_wheelchair_accessible = (line[-2] != "0")
+
+                    if concerned_lines[line_id] in ("7", "13"):
+                        for p in ("_a", "_r"):
+                            tmp_line_id = line_id + p + "_1"
+                            for j in range(len(lines_trajects[tmp_line_id])-1):
+                                stop_ids = [lines_trajects[tmp_line_id][j][-1].split(':')[-1], lines_trajects[tmp_line_id][j+1][-1].split(':')[-1]]
+                                return_data[line_id][shape_id + f"{stop_ids[0]}_{stop_ids[1]}"] = {
+                                    "name": trip_name,
+                                    "start_id": stop_ids[0].split(':')[-1],
+                                    "end_id": stop_ids[1].split(':')[-1],
+                                    "trip_id": trip_id,
+                                    "line_id": line_id,
+                                    "dir": direction,
+                                    "bike": are_bikes_allowed,
+                                    "wchair": is_it_wheelchair_accessible
+                                }
+                            tmp_line_id = line_id + p + "_2"
+                            for j in range(len(lines_trajects[tmp_line_id])-1):
+                                stop_ids = [lines_trajects[tmp_line_id][j][-1], lines_trajects[tmp_line_id][j+1][-1]]
+                                return_data[line_id][shape_id + f"{stop_ids[0]}_{stop_ids[1]}"] = {
+                                    "name": trip_name,
+                                    "start_id": stop_ids[0].split(':')[-1],
+                                    "end_id": stop_ids[1].split(':')[-1],
+                                    "trip_id": trip_id,
+                                    "line_id": line_id,
+                                    "dir": direction,
+                                    "bike": are_bikes_allowed,
+                                    "wchair": is_it_wheelchair_accessible
+                                }
+                    else:
+                        for p in ("_a", "_r"):
+                            for j in range(len(lines_trajects[line_id+p])-1):
+                                stop_ids = [lines_trajects[line_id+p][j][-1], lines_trajects[line_id+p][j+1][-1]]
+                                return_data[line_id][shape_id + f"{stop_ids[0]}_{stop_ids[1]}"] = {
+                                    "name": trip_name,
+                                    "start_id": stop_ids[0].split(':')[-1],
+                                    "end_id": stop_ids[1].split(':')[-1],
+                                    "trip_id": trip_id,
+                                    "line_id": line_id,
+                                    "dir": direction,
+                                    "bike": are_bikes_allowed,
+                                    "wchair": is_it_wheelchair_accessible
+                                }
+
+        with open(pkl_file, "wb") as f:
+           pickle.dump(return_data, f)
+    else:
+        with open(pkl_file, "rb") as f:
+            return_data = pickle.load(f)
+    # print(return_data)
+    return return_data
+
+def tmp_association_stops_lines_traces():
     """
     Fonction temporaire qui modifie le geojson des tracés des lignes pour avoir les stations de début et de fin dans les properties
     ------------------
@@ -620,14 +770,42 @@ def temp_association_stops_lines_traces():
     pathfile = Path(__file__).parent.parent / "Geojson" / "traces-du-reseau-ferre-idf.geojson"
     pathfile = pathfile.resolve()
 
-    for k, v in stops_position().items():
-        stops_infos[v["line"]][k] = v
+    """for k, v in stops_position().items():
+        stops_infos[v["line"]][k] = v"""
+
+    lines = {v["id"]: k for k, v in lines_info()["Lines"].items()}
+    courses = courses_info()
+    positions = stops_position()
 
     with open(pathfile, "r", encoding="utf-8") as f:
         file = json.load(f)
 
         features = file["features"]
-
         
-
+        for feature in features:
+            if feature["properties"]["metro"] == 1:
+                line_id = feature["properties"]["idrefligc"]
+                line_courses = courses[line_id]
+                start = feature["geometry"]["coordinates"][1]
+                end = feature["geometry"]["coordinates"][-1]
+                start_id = ""
+                end_id = ""
+                for shape_id, course in line_courses.items():
+                    stop_1 = positions[course["start_id"]]
+                    stop_2 = positions[course["end_id"]]
+                    if ((start[0] - float(stop_1["long"]))**2 + (start[1] - float(stop_1["lat"]))**2)**0.5 < 0.02 and ((end[0] - float(stop_2["long"]))**2 + (end[1] - float(stop_2["lat"]))**2)**0.5 < 0.02:
+                        start_id = course["start_id"]
+                        end_id = course["end_id"]
+                        break
+                feature["properties"]["start_id"] = start_id
+                feature["properties"]["end_id"] = end_id
+                feature["properties"]["shape_id"] = shape_id
+        
+        file["features"] = features
+        
+    with open(pathfile, "w", encoding="utf-8") as f:
+        json.dump(file, f, ensure_ascii=False, indent=2)
+                
+                        
+        
     return

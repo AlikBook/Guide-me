@@ -1,6 +1,6 @@
 from app.functions.functionsV2 import (
     get_trajets_for_metro, get_max_len, get_stations_id_and_name_per_metro,
-    filter_idx_trajects, join_all_metro_connections, create_metro_empty_graph, stops_position, lines_info
+    filter_idx_trajects, join_all_metro_connections, create_metro_empty_graph, stops_position, lines_info, courses_info
 )
 
 def load_all_data():
@@ -14,6 +14,7 @@ def load_all_data():
     graph = create_metro_empty_graph(filtered_metro_ids, complete_data)
     stops_position()
     lines_info()
+    courses_info()
 
     return {
         "graph": graph,

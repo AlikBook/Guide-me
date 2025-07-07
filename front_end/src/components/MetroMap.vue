@@ -37,8 +37,8 @@ const imageBounds = [0, 0, metroImageSize.x, metroImageSize.y]
 
 // Location et limites V2 (format EPSG:3857)
 const ParisLocation = [261845.71, 6250564.35] // 2.3522, 48.8566 en ESPG:4326
-const maxSw = fromLonLat([2.2242, 48.8156]) // ESPG: 4326 --> 3857
-const maxNe = fromLonLat([2.4699, 48.9022])
+const maxSw = fromLonLat([2.2, 48.76]) // ESPG: 4326 --> 3857
+const maxNe = fromLonLat([2.49, 48.95])
 const mapBounds = [ maxSw[0], maxSw[1], maxNe[0], maxNe[1] ]
 
 // Eléments de la carte
@@ -121,7 +121,7 @@ onMounted( async () => {
       center: center, 
       zoom: zoom,
       minZoom: zoom,
-      //extent: bounds
+      extent: bounds
     })
   }
 
@@ -251,32 +251,65 @@ async function setStationPoints(){
     }
   }
   else if(version == 2){
+    var features_over = []
     for(let stop_id in data.value){
       let stop = data.value[stop_id]
-      let p = new Point(fromLonLat([stop.long, stop.lat]))
-      let f = new Feature({geometry: p})
-      f.set('stationName', stop.name);
-      if (stop.line === 15){
-        stop.line = "3B"
-      }
-      else if (stop.line == 16){
-        stop.line = "7B"
-      }
+      if(stop.ref!=-1){
+        let p = new Point(fromLonLat([stop.long, stop.lat]))
+        let f = new Feature({geometry: p})
+        f.set('stationName', stop.name);
+        if (stop.line == 15){
+          stop.line = "3B"
+        }
+        else if (stop.line == 16){
+          stop.line = "7B"
+        }
 
-      var pointStyle = new Style({
-        image: new Circle({
-          radius: 3.5,
-          fill: new Fill({
-            color: '#' + (linesInfo.value.Lines[String(stop.line).trim()]?.color ?? 'CCCCCC'),
-          }),/*
-          stroke: new Stroke({
-            color: '#' + (linesInfo.value.Lines[String(stop.line).trim()]?.color ?? 'CCCCCC'),
-            width: 1.5,
-          }),*/
-        }),
-      })
-      f.setStyle([pointStyle])
-      features.push(f)
+        var pointStyle = new Style({
+          image: new Circle({
+            radius: 3.5,
+            fill: new Fill({
+              color: '#' + (linesInfo.value.Lines[String(stop.line).trim()]?.color ?? 'CCCCCC'),
+            }),/*
+            stroke: new Stroke({
+              color: '#' + (linesInfo.value.Lines[String(stop.line).trim()]?.color ?? 'CCCCCC'),
+              width: 1.5,
+            }),*/
+          }),
+        })
+        f.setStyle([pointStyle])
+        features.push(f)
+      } else if (stop.line==0){
+        let stop = data.value[stop_id]
+        let p = new Point(fromLonLat([stop.long, stop.lat]))
+        let f = new Feature({geometry: p})
+        f.set('stationName', stop.name);
+        if (stop.line == 15){
+          stop.line = "3B"
+        }
+        else if (stop.line == 16){
+          stop.line = "7B"
+        }
+
+        var pointStyle = new Style({
+          zIndex: 10,
+          image: new Circle({
+            radius: 2.8,
+            fill: new Fill({
+              color: 'white',
+            }),
+            stroke: new Stroke({
+              color: 'black',
+              width: 0.7,
+            }),
+          }),
+        })
+        f.setStyle([pointStyle])
+        features_over.push(f)
+      }
+    }
+    for(let fo of features_over){
+      features.push(fo)
     }
   }
 }
