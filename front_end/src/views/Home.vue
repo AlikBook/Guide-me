@@ -7,11 +7,11 @@
       </div>
     </header>
 
-
     <main class="main-content">
       <div class="layout-container">
         <!-- Colonne de gauche pour les résultats -->
         <div class="results-column">
+          <!-- Barre de recherche -->
           <div class="search-section">
             <div class="search-card">
               <div class="search-row-with-swap">
@@ -53,7 +53,11 @@
                   </ul>
                 </div>
 
-                <button class="swap-button" @click="swapStations" title="Inverser">
+                <button
+                  class="swap-button"
+                  @click="swapStations"
+                  title="Inverser"
+                >
                   <svg viewBox="0 0 24 24" width="20" height="20">
                     <path
                       fill="currentColor"
@@ -114,11 +118,13 @@
                   />
                 </svg>
               </button>
+              <NetworkAnalysis />
+              <CarbonImpact :trip="trip" />
             </div>
           </div>
-          
 
-          <div v-if="trip && trip.total_time" class="trip-summary">
+          <!-- Résultats du trajet -->
+          <div v-if="trip && trip.total_time" class="trip-results">
             <div class="time-badge">
               <svg viewBox="0 0 24 24" width="18" height="18">
                 <path
@@ -130,23 +136,42 @@
                   d="M12.5 7H11v6l5.25 3.15.75-1.23-4.5-2.67z"
                 />
               </svg>
-              <span>Temps estimé : {{ trip.total_time }}</span>
+              <span>{{ trip.total_time }} min</span>
             </div>
             <div class="trip-stats">
               <span>{{ journeyStats.totalStations }} stations</span> •
-              <span>{{ journeyStats.changes }} changement{{ journeyStats.changes > 1 ? 's' : '' }}</span>
+              <span
+                >{{ journeyStats.changes }} changement{{
+                  journeyStats.changes > 1 ? "s" : ""
+                }}</span
+              >
             </div>
-          </div>
 
-          <div v-if="trip && trip.stations" class="journey-container">
-            <div class="journey-card">
+            <!-- Bloc compact des lignes -->
+            <div class="compact-lines-container" @click="toggleTripDetails">
+              <div class="compact-lines">
+                <div
+                  v-for="(lineObj, index) in cleanedTrip"
+                  :key="index"
+                  class="line-badge"
+                  :style="{
+                    backgroundColor: getColorCode(Object.keys(lineObj)[0]),
+                  }"
+                >
+                  {{ Object.keys(lineObj)[0] }}
+                </div>
+              </div>
+              <div class="toggle-icon">
+                {{ showTripDetails ? "▼" : "▲" }}
+              </div>
+            </div>
+
+            <!-- Détails dépliés -->
+            <div v-if="showTripDetails" class="trip-details">
               <div
-                v-for="lineObj in cleanedTrip"
-                :key="Object.keys(lineObj)[0]"
+                v-for="(lineObj, lineIndex) in cleanedTrip"
+                :key="lineIndex"
                 class="line-section"
-                :style="{
-                  borderLeftColor: getColorCode(Object.keys(lineObj)[0]),
-                }"
               >
                 <div class="line-header">
                   <div
@@ -158,16 +183,20 @@
                     {{ Object.keys(lineObj)[0] }}
                   </div>
                   <div class="line-direction">
-                    Direction {{ getLastStation(lineObj).station }}
+                    Descendre à : {{ getLastStation(lineObj).station }}
                   </div>
                 </div>
 
                 <div class="stations-list">
                   <div
-                    v-for="(station, index) in Object.values(lineObj)[0]"
-                    :key="station.id"
-                    :class="['station-item', { 'station-animated': animatedStations.has(station.id) }]"
-                    :style="animatedStations.has(station.id) ? { '--glow-color': getColorCode(Object.keys(lineObj)[0]) } : {}"
+                    v-for="(station, stationIndex) in Object.values(lineObj)[0]"
+                    :key="stationIndex"
+                    class="station-item"
+                    :class="{
+                      'first-station': stationIndex === 0,
+                      'last-station':
+                        stationIndex === Object.values(lineObj)[0].length - 1,
+                    }"
                   >
                     <div class="station-marker-container">
                       <div
@@ -180,6 +209,9 @@
                       ></div>
                       <div
                         class="station-line"
+                        v-if="
+                          stationIndex < Object.values(lineObj)[0].length - 1
+                        "
                         :style="{
                           backgroundColor: getColorCode(
                             Object.keys(lineObj)[0]
@@ -187,18 +219,24 @@
                         }"
                       ></div>
                     </div>
-                    <div class="station-details">
+                    <div class="station-info">
                       <div class="station-name">{{ station.station }}</div>
-                      <div v-if="index === 0" class="station-time">Départ</div>
-                      <div
-                        v-else-if="
-                          index === Object.values(lineObj)[0].length - 1
-                        "
-                        class="station-time"
-                      >
-                        Arrivée
+                      <div class="station-time" v-if="stationIndex > 0">
+                        {{ station.time || "" }}
                       </div>
                     </div>
+                  </div>
+                </div>
+
+                <!-- Correspondance -->
+                <div
+                  v-if="lineIndex < cleanedTrip.length - 1"
+                  class="connection"
+                >
+                  <div class="connection-marker"></div>
+                  <div class="connection-info">
+                    <span>Correspondance</span>
+                    <span class="connection-time"></span>
                   </div>
                 </div>
               </div>
@@ -219,6 +257,8 @@
 
 <script setup>
 import MetroMap from '../components/MetroMap.vue'
+import NetworkAnalysis from '../components/Network-analysis.vue'
+import CarbonImpact from '../components/CarbonImpact.vue'
 import { ref, onMounted, computed } from "vue";
 
 const data = ref(null);
@@ -230,19 +270,17 @@ const trip = ref(null);
 const showSuggestions1 = ref(false);
 const showSuggestions2 = ref(false);
 const allStations = ref([]);
+const expandedLines = ref([]);
+const selectedDeparture = ref(null);
+const selectedArrival = ref(null);
+const showTripDetails = ref(false);
 
 onMounted(async () => {
   const response = await fetch("http://127.0.0.1:8000/station_ids");
   const result = await response.json();
   data.value = result;
   allStations.value = result.stations;
-
 });
-
-function extractLineNumber(stationName) {
-  const match = stationName.match(/;\d+/);
-  return match ? match[0].replace(";", "") : "?";
-}
 
 const filteredStations1 = computed(() => {
   if (!station1Input.value) return [];
@@ -269,7 +307,8 @@ const filteredStations2 = computed(() => {
 });
 
 const journeyStats = computed(() => {
-  if (!trip.value || !trip.value.stations) return { totalStations: 0, changes: 0 };
+  if (!trip.value || !trip.value.stations)
+    return { totalStations: 0, changes: 0 };
 
   const stationSet = new Set();
 
@@ -285,7 +324,6 @@ const journeyStats = computed(() => {
 
   return { totalStations, changes };
 });
-
 
 function filterStations(field) {
   if (field === 1) {
@@ -308,15 +346,16 @@ function hideSuggestions(field) {
 function selectStation(station, field) {
   if (field === 1) {
     station1.value = station.id;
-    station1Input.value = `${station.station} (Ligne: ${station.line})`;
+    station1Input.value = station.station;
+    selectedDeparture.value = station;
     showSuggestions1.value = false;
   } else {
     station2.value = station.id;
-    station2Input.value = `${station.station} (Ligne: ${station.line})`;
+    station2Input.value = station.station;
+    selectedArrival.value = station;
     showSuggestions2.value = false;
   }
 }
-
 
 function getLastStation(lineObj) {
   const stations = Object.values(lineObj)[0];
@@ -332,7 +371,8 @@ async function call_trip(value1, value2) {
     body: JSON.stringify({ start: value1, end: value2 }),
   });
   trip.value = await res.json();
-  startJourneyAnimation();
+  expandedLines.value = new Array(trip.value.stations.length).fill(false);
+  showTripDetails.value = false;
 }
 
 function getColorCode(lineName) {
@@ -361,14 +401,16 @@ function getColorCode(lineName) {
 function swapStations() {
   const tempId = station1.value;
   const tempInput = station1Input.value;
+  const tempStation = selectedDeparture.value;
 
   station1.value = station2.value;
   station1Input.value = station2Input.value;
+  selectedDeparture.value = selectedArrival.value;
 
   station2.value = tempId;
   station2Input.value = tempInput;
+  selectedArrival.value = tempStation;
 }
-
 
 const cleanedTrip = computed(() => {
   if (!trip.value || !trip.value.stations) return [];
@@ -410,35 +452,20 @@ const cleanedTrip = computed(() => {
   return cleaned;
 });
 
-const animatedStations = ref(new Set());
-
-function startJourneyAnimation() {
-  animatedStations.value.clear();
-  let delay = 0;
-
-  cleanedTrip.value.forEach((lineObj) => {
-    const stations = Object.values(lineObj)[0];
-
-    stations.forEach((station) => {
-      setTimeout(() => {
-        animatedStations.value.add(station.id);
-      }, delay);
-      delay += 500;
-    });
-  });
+function toggleTripDetails() {
+  showTripDetails.value = !showTripDetails.value;
 }
-
 </script>
 
 <style>
 :root {
   --primary-color: #2f2f7e;
   --secondary-color: #ff5a5f;
-  --text-color: #000000;
-  --light-text: #242323;
-  --border-color: #696969;
+  --text-color: #333;
+  --light-text: #666;
+  --border-color: #e0e0e0;
   --background-light: #f8f9fa;
-  --card-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --card-shadow: 0 1px 6px rgba(0, 0, 0, 0.1);
 }
 
 * {
@@ -448,11 +475,10 @@ function startJourneyAnimation() {
 }
 
 body {
-  font-family: "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans",
-    sans-serif;
+  font-family: "Roboto", Arial, sans-serif;
   color: var(--text-color);
   background-color: #fff;
-  line-height: 1.6;
+  line-height: 1.5;
 }
 
 .app-container {
@@ -490,7 +516,6 @@ body {
   margin-bottom: 24px;
 }
 
-
 .search-input-container {
   position: relative;
   margin-bottom: 12px;
@@ -501,10 +526,10 @@ body {
   left: 12px;
   top: 50%;
   transform: translateY(-50%);
-  color: var(--light-text );
+  color: var(--light-text);
 }
 
-.search-icon-arrivée{
+.search-icon-arrivée {
   position: absolute;
   left: 12px;
   top: 50%;
@@ -515,8 +540,8 @@ body {
 .search-input {
   width: 100%;
   padding: 12px 16px 12px 40px;
-  border: 3px solid var(--border-color);
-  border-radius: 20px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
   font-size: 16px;
   transition: border-color 0.2s;
 }
@@ -596,9 +621,8 @@ body {
   fill: white;
 }
 
-.trip-summary {
+.trip-results {
   margin-bottom: 20px;
-  text-align: center;
 }
 
 .time-badge {
@@ -610,46 +634,79 @@ body {
   border-radius: 20px;
   font-size: 15px;
   font-weight: 500;
+  margin-bottom: 12px;
 }
 
 .time-badge svg {
   fill: var(--primary-color);
 }
 
-.journey-container {
-  margin-bottom: 24px;
+.trip-stats {
+  margin-bottom: 16px;
+  font-size: 14px;
+  color: var(--light-text);
 }
 
-.journey-card {
-  background: rgba(255, 255, 255, 0.15);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+/* Styles pour l'affichage compact */
+.compact-lines-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: white;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-top: 16px;
+  cursor: pointer;
+  box-shadow: var(--card-shadow);
+  transition: all 0.2s;
+}
+
+.compact-lines-container:hover {
+  background-color: #f5f5f5;
+}
+
+.compact-lines {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.line-badge {
+  padding: 6px 12px;
   border-radius: 16px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  padding-top: 20px;
-  padding-right: 30px;
+  color: white;
+  font-size: 14px;
+  font-weight: 600;
+  min-width: 50px;
+  text-align: center;
+}
+
+.toggle-icon {
+  font-size: 14px;
+  color: var(--light-text);
+  margin-left: 8px;
+}
+
+/* Styles pour les détails dépliés */
+.trip-details {
+  margin-top: 16px;
+  animation: fadeIn 0.3s ease-out;
 }
 
 .line-section {
-  padding-left: 16px;
-  border-left: 4px solid;
-  margin-bottom: 24px;
+  background: white;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+  box-shadow: var(--card-shadow);
 }
 
 .line-header {
   display: flex;
   align-items: center;
+  gap: 12px;
   margin-bottom: 12px;
-}
-
-.line-badge {
-  padding: 4px 10px;
-  border-radius: 12px;
-  color: white;
-  font-size: 14px;
-  font-weight: 600;
-  margin-right: 10px;
 }
 
 .line-direction {
@@ -659,6 +716,8 @@ body {
 
 .stations-list {
   margin-left: 8px;
+  padding-left: 14px;
+  border-left: 2px solid var(--border-color);
 }
 
 .station-item {
@@ -672,6 +731,7 @@ body {
   flex-direction: column;
   align-items: center;
   margin-right: 12px;
+  position: relative;
 }
 
 .station-marker {
@@ -685,16 +745,14 @@ body {
 
 .station-line {
   width: 2px;
-  height: 100%;
+  height: calc(100% - 16px);
   position: absolute;
   top: 16px;
   left: 7px;
 }
 
-.station-details {
+.station-info {
   flex: 1;
-  padding-bottom: 16px;
-  border-bottom: 1px dashed var(--border-color);
 }
 
 .station-name {
@@ -703,58 +761,43 @@ body {
 }
 
 .station-time {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--light-text);
 }
 
-.metro-map {
-  width: 100%;
-  border-radius: 8px;
+.first-station .station-marker {
+  border-color: #4caf50;
 }
 
-.station-id {
-  font-weight: 600;
-  color: var(--primary-color);
-  margin-bottom: 4px;
+.last-station .station-marker {
+  border-color: #f44336;
 }
 
-.station-name {
-  margin-bottom: 4px;
+.connection {
+  display: flex;
+  align-items: center;
+  margin: 12px 0 0 8px;
 }
 
-.station-line {
-  font-size: 12px;
+.connection-marker {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background-color: white;
+  border: 2px solid var(--border-color);
+  margin-right: 12px;
+  position: relative;
+}
+
+.connection-info {
+  flex: 1;
+  font-size: 13px;
   color: var(--light-text);
 }
 
-.loading-message {
-  text-align: center;
-  padding: 20px;
-  color: var(--light-text);
-}
-
-@media (max-width: 768px) {
-  .layout-container {
-    flex-direction: column;
-  }
-
-  .results-column,
-  .map-column {
-    flex: 1 1 100%;
-    max-width: 100%;
-  }
-
-  .map-column {
-    order: -1;
-    margin-bottom: 20px;
-    position: static;
-  }
-}
-
-.trip-stats {
-  margin-top: 8px;
-  font-size: 14px;
-  color: var(--light-text);
+.connection-time {
+  margin-left: 8px;
+  font-weight: 500;
 }
 
 .swap-button {
@@ -789,30 +832,6 @@ body {
   position: relative;
 }
 
-.station-animated .station-marker {
-  box-shadow: 0 0 8px 3px var(--glow-color);
-  transition: box-shadow 0.3s ease;
-}
-
-.station-animated .station-name {
-  color: var(--glow-color);
-  font-weight: bold;
-  transition: color 0.3s ease;
-}
-
-.station-animated .station-marker {
-  animation: glow-pulse 1.5s ease-in-out infinite alternate;
-}
-
-@keyframes glow-pulse {
-  from {
-    box-shadow: 0 0 4px 2px var(--glow-color);
-  }
-  to {
-    box-shadow: 0 0 10px 5px var(--glow-color);
-  }
-}
-
 .app-header {
   position: sticky;
   top: 0;
@@ -837,7 +856,7 @@ body {
   align-items: center;
   justify-content: center;
   gap: 5px;
-  background-color:#2f2f7e;
+  background-color: #2f2f7e;
   border-radius: 20px;
 }
 
@@ -855,7 +874,47 @@ body {
 }
 
 .highlight {
-  color: #ffd700; /* jaune doré pour "Me", tu peux changer */
+  color: #ffd700;
 }
 
+.metro-map {
+  width: 100%;
+  border-radius: 8px;
+  height: auto;
+  max-height: 600px;
+  object-fit: contain;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 768px) {
+  .layout-container {
+    flex-direction: column;
+  }
+
+  .results-column,
+  .map-column {
+    flex: 1 1 100%;
+    max-width: 100%;
+  }
+
+  .map-column {
+    order: -1;
+    margin-bottom: 20px;
+    position: static;
+  }
+
+  .metro-map {
+    max-height: 400px;
+  }
+}
 </style>

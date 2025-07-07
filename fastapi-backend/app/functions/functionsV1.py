@@ -1,6 +1,6 @@
 from pathlib import Path
 
-filepath = Path(__file__).parent.parent / "v1_text_files" / "metro.txt"
+filepath = Path(__file__).resolve().parent.parent / "v1_text_files" / "metro.txt"
 filepath = filepath.resolve()
 
 def read_metro_data(filepath :str):

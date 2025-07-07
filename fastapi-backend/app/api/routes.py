@@ -6,7 +6,6 @@ from app.services.metro_service import get_trip, get_all_station_ids, get_statio
 router = APIRouter()
 
 
-
 class TripRequest(BaseModel):
     start: int
     end: int
@@ -40,6 +39,33 @@ async def station_ids_endpoint(request: Request):
     except Exception as e:
         print("Error in /station_ids:", e)
         raise HTTPException(status_code=500, detail="Internal server error")
+
+
+from app.services.metro_service import analyze_network_and_mst
+
+"""@router.get("/analyze_network")
+async def analyze_network_endpoint(request: Request):
+    data = request.app.state.metro_data
+    graph = data["graph"]
+    metro_info = data["metro_info"]
+    return analyze_network_and_mst(graph, metro_info)"""
+
+@router.get("/analyze_network")
+async def analyze_network_endpoint():
+    return analyze_network_and_mst()
+
+
+
+"""@router.get("/analyze_network")
+async def analyze_network_endpoint(request: Request):
+    data = request.app.state.metro_data
+    graph = data["graph"]
+    metro_info = data["metro_info"]
+    return analyze_network_and_mst(graph, metro_info)"""
+
+@router.get("/analyze_network")
+async def analyze_network_endpoint():
+    return analyze_network_and_mst()
 
 
 '''@router.get("/stations/{line_number}")
