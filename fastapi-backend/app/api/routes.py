@@ -1,6 +1,14 @@
 from fastapi import APIRouter, Request, HTTPException
 from pydantic import BaseModel
 from app.services.metro_service import get_trip, get_all_station_ids, analyze_network_and_mst
+from app.core.station_coordinates import (
+    get_all_station_coordinates, 
+    get_station_coordinates, 
+    get_all_lines, 
+    get_line_info,
+    get_line_topology,
+    get_station_connections
+)
 
 router = APIRouter()
 
@@ -31,5 +39,105 @@ async def analyze_network_endpoint(request: Request):
     try:
         data = request.app.state.metro_data
         return analyze_network_and_mst(data)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/station_coordinates")
+async def get_station_coordinates_endpoint():
+    """Get all station coordinates for the map"""
+    try:
+        coordinates = get_all_station_coordinates()
+        lines = get_all_lines()
+        
+        return {
+            "stations": coordinates,
+            "lines": lines,
+            "total_stations": len(coordinates)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/station_coordinates/{station_name}")
+async def get_single_station_coordinates(station_name: str):
+    """Get coordinates for a specific station"""
+    try:
+        coords = get_station_coordinates(station_name)
+        if coords is None:
+            raise HTTPException(status_code=404, detail=f"Station '{station_name}' not found")
+        
+        return {
+            "station": station_name,
+            "coordinates": coords
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/network_data")
+async def get_network_data_endpoint(request: Request):
+    """Get complete network data including stations with coordinates and connections"""
+    try:
+        # Get station data from the existing system
+        data = request.app.state.metro_data
+        station_data = get_all_station_ids(data)
+        
+        # Get coordinate data
+        coordinates = get_all_station_coordinates()
+        lines = get_all_lines()
+        
+        # Enrich station data with coordinates
+        enriched_stations = []
+        for station in station_data.get("stations", []):
+            station_name = station.get("station_name")
+            coords = get_station_coordinates(station_name)
+            
+            enriched_station = {
+                **station,
+                "coordinates": coords,
+                "has_coordinates": coords is not None
+            }
+            enriched_stations.append(enriched_station)
+        
+        return {
+            "stations": enriched_stations,
+            "line_definitions": lines,
+            "coordinate_coverage": len([s for s in enriched_stations if s["has_coordinates"]]),
+            "total_stations": len(enriched_stations)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/line_topology/{line_id}")
+async def get_line_topology_endpoint(line_id: str):
+    """Get the ordered station list for a specific line"""
+    try:
+        topology = get_line_topology(line_id)
+        if not topology:
+            raise HTTPException(status_code=404, detail=f"Line '{line_id}' not found")
+        
+        return {
+            "line_id": line_id,
+            "stations": topology,
+            "station_count": len(topology)
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/station_connections/{station_name}")
+async def get_station_connections_endpoint(station_name: str):
+    """Get all line connections for a station"""
+    try:
+        connections = get_station_connections(station_name)
+        coords = get_station_coordinates(station_name)
+        
+        return {
+            "station": station_name,
+            "lines": connections,
+            "coordinates": coords,
+            "is_transfer": len(connections) > 1
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
