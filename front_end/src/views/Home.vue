@@ -118,8 +118,11 @@
                   />
                 </svg>
               </button>
-              <NetworkAnalysis />
-              <CarbonImpact :trip="trip" />
+              <div style="display: flex; gap: 1rem; justify-content: center; align-items: center; margin-top: 10px;">
+                <NetworkAnalysis />
+                <CarbonImpact :trip="trip" />
+              </div>
+
             </div>
           </div>
 
@@ -919,5 +922,6 @@ body {
   .metro-map {
     max-height: 400px;
   }
+
 }
 </style>
