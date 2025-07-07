@@ -500,7 +500,7 @@ body {
 .map-column {
   flex: 1;
   position: sticky;
-  top: 20px;
+  top: 147px;
   height: fit-content;
 }
 

@@ -5,7 +5,6 @@ import MetroMap from './components/MetroMap.vue'
 
 <template>
   <Menu></Menu>
-  <MetroMap />
   <router-view></router-view>
   
 </template>
