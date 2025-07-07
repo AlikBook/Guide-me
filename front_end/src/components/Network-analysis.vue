@@ -62,7 +62,7 @@
     padding: 10px 20px;
     font-size: 16px;
     font-weight: 500;
-    background-color: #e0e5ea;
+    background-color: #439df8;
     color: white;
     border: none;
     border-radius: 8px;
