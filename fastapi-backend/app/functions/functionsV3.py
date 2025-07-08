@@ -24,13 +24,13 @@ def get_yen_wrapper():
 try:
     from app.functions.yen_compiler.yen_wrapper import get_k_shortest_paths
     _INITIAL_YEN_AVAILABLE = True
-    print("✓ Fast C implementation of Yen's algorithm loaded successfully")
+    print("SUCCESS: Fast C implementation of Yen's algorithm loaded successfully")
 except ImportError as e:
     _INITIAL_YEN_AVAILABLE = False
     # Only print detailed warning if not in startup context
     # (startup will handle this with auto_build.py)
     if not os.environ.get('FASTAPI_STARTUP', False):
-        print(f"⚠️  Warning: yen_wrapper not available - {str(e)}")
+        print(f"WARNING: yen_wrapper not available - {str(e)}")
         print(f"   Platform: {platform.system()} {platform.machine()}")
         print(f"   Python: {platform.python_version()}")
         print("   Note: Backend startup will attempt automatic build")

@@ -25,13 +25,13 @@ def on_startup():
     os.environ['FASTAPI_STARTUP'] = 'true'
     
     # Auto-build C extension if needed
-    print("🔍 Checking C extension availability...")
+    print("Checking C extension availability...")
     yen_available = ensure_yen_wrapper()
     
     if yen_available:
-        print("⚡ High-performance mode enabled")
+        print("High-performance mode enabled")
     else:
-        print("🐌 Running in compatibility mode (slower performance)")
+        print("Running in compatibility mode (slower performance)")
     
     # Load data
     data = load_all_data()
