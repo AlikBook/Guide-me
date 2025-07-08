@@ -2,12 +2,22 @@ import os
 import pickle
 from datetime import datetime, timedelta
 from app.functions.reads_and_pickles import load_ratp_data, read_and_save_stops, read_transfers, get_detailed_trips_for_RER, read_RER_lines
+import platform
+
 try:
     from app.functions.yen_compiler.yen_wrapper import get_k_shortest_paths
     HAS_YEN_WRAPPER = True
-except ImportError:
+    print("✓ Fast C implementation of Yen's algorithm loaded successfully")
+except ImportError as e:
     HAS_YEN_WRAPPER = False
-    print("Warning: yen_wrapper not available, some functionality may be limited")
+    # Only print detailed warning if not in startup context
+    # (startup will handle this with auto_build.py)
+    if not os.environ.get('FASTAPI_STARTUP', False):
+        print(f"⚠️  Warning: yen_wrapper not available - {str(e)}")
+        print(f"   Platform: {platform.system()} {platform.machine()}")
+        print(f"   Python: {platform.python_version()}")
+        print("   Note: Backend startup will attempt automatic build")
+
 import heapq
 from datetime import datetime, timedelta
 # Ensure the pickle directory exists
