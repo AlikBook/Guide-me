@@ -666,7 +666,13 @@ export default {
 
     createStationPopup(stationName, stationData) {
       const linesText = (stationData.lines || []).join(', ');
-      const wheelchairText = stationData.wheelchair ? '♿ Accessible' : '';
+      // Handle wheelchair accessibility correctly
+      let wheelchairText = '';
+      if (stationData.wheelchair === 1) {
+        wheelchairText = '♿ Accessible';
+      } else if (stationData.wheelchair === 0 || stationData.wheelchair === 2) {
+        wheelchairText = '🚫 Non accessible';
+      }
       
       return `
         <div class="station-popup">
