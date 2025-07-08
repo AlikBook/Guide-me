@@ -8,7 +8,25 @@ __pycache__/
 # Ignore environment files
 .env
 
-node_modules
+# Node.js dependencies
+node_modules/
+
+# Generated C extension files (auto-built on each machine)
+fastapi-backend/app/functions/yen_compiler/yen_wrapper.c
+fastapi-backend/app/functions/yen_compiler/*.pyd
+fastapi-backend/app/functions/yen_compiler/*.so
+fastapi-backend/app/functions/yen_compiler/*.dll
+fastapi-backend/app/functions/yen_compiler/build/
+fastapi-backend/app/functions/yen_compiler/dist/
+fastapi-backend/app/functions/yen_compiler/*.egg-info/
+
+# Wheels directory (if created)
+wheels/
+
+# Distribution packages
+distribution/
+
+# Cached/generated data files
 fastapi-backend/app/V2_text_files/agency.txt
 fastapi-backend/app/V2_text_files/calendar_dates.txt
 fastapi-backend/app/V2_text_files/calendar.txt
@@ -19,12 +37,14 @@ fastapi-backend/app/V2_text_files/stop_times.txt
 fastapi-backend/app/V2_text_files/stops.txt
 fastapi-backend/app/V2_text_files/transfers.txt
 fastapi-backend/app/V2_text_files/trips.txt
+
+# Cached pickle files (regenerated automatically)
 fastapi-backend/app/functions/container_pkl_files/ratp_data.pkl
 fastapi-backend/app/functions/container_pkl_files/max_len_results.pkl
 fastapi-backend/app/functions/container_pkl_files/station_info_cache.pkl
 fastapi-backend/app/functions/container_pkl_files/stop_data.pkl
 fastapi-backend/app/functions/container_pkl_files/trajects_per_metro.pkl
 fastapi-backend/app/functions/container_pkl_files/all_metro_ids.pkl
-front_end/src/views/Home.vue
 fastapi-backend/app/functions/container_pkl_files/rer_connections.pkl
 fastapi-backend/app/functions/container_pkl_files/RER_detailed_trips.pkl
+fastapi-backend/app/functions/yen_compiler/yen_wrapper.cp312-win_amd64.pyd

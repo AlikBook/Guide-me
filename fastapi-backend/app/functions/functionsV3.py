@@ -2,12 +2,62 @@ import os
 import pickle
 from datetime import datetime, timedelta
 from app.functions.reads_and_pickles import load_ratp_data, read_and_save_stops, read_transfers, get_detailed_trips_for_RER, read_RER_lines
+import platform
+
+def check_yen_wrapper_available():
+    """Check if yen_wrapper is available for import - dynamic check"""
+    try:
+        from app.functions.yen_compiler.yen_wrapper import get_k_shortest_paths
+        return True
+    except ImportError:
+        return False
+
+def get_yen_wrapper():
+    """Get the yen_wrapper function if available"""
+    try:
+        from app.functions.yen_compiler.yen_wrapper import get_k_shortest_paths
+        return get_k_shortest_paths
+    except ImportError:
+        return None
+
+# Function to dynamically check and update YEN wrapper availability
+def update_yen_wrapper_status():
+    """Update the global HAS_YEN_WRAPPER status after auto-build attempts"""
+    global HAS_YEN_WRAPPER, _INITIAL_YEN_AVAILABLE, get_k_shortest_paths
+    try:
+        # Clear cached imports
+        import sys
+        if 'app.functions.yen_compiler.yen_wrapper' in sys.modules:
+            del sys.modules['app.functions.yen_compiler.yen_wrapper']
+        
+        # Try to import again
+        from app.functions.yen_compiler.yen_wrapper import get_k_shortest_paths
+        HAS_YEN_WRAPPER = True
+        _INITIAL_YEN_AVAILABLE = True
+        print("SUCCESS: Fast C implementation of Yen's algorithm loaded successfully")
+        return True
+    except ImportError:
+        HAS_YEN_WRAPPER = False
+        _INITIAL_YEN_AVAILABLE = False
+        return False
+
+# Initial check at import time
 try:
     from app.functions.yen_compiler.yen_wrapper import get_k_shortest_paths
+    _INITIAL_YEN_AVAILABLE = True
     HAS_YEN_WRAPPER = True
-except ImportError:
+    print("SUCCESS: Fast C implementation of Yen's algorithm loaded successfully")
+except ImportError as e:
+    _INITIAL_YEN_AVAILABLE = False
     HAS_YEN_WRAPPER = False
-    print("Warning: yen_wrapper not available, some functionality may be limited")
+    # Only print detailed warning if not in startup context
+    # (startup will handle this with auto_build.py)
+    if not os.environ.get('FASTAPI_STARTUP', False):
+        print(f"WARNING: yen_wrapper not available - {str(e)}")
+        print(f"   Platform: {platform.system()} {platform.machine()}")
+        print(f"   Python: {platform.python_version()}")
+        print("   Note: Backend startup will attempt automatic build")
+
 import heapq
 from datetime import datetime, timedelta
 # Ensure the pickle directory exists
@@ -432,12 +482,27 @@ def is_station_transfer_consistent(stations_by_line):
         return True
 
 def calculate_path_and_time(start_id, end_id, edges, metro_info, all_station_ids, id_to_index, rer_stop_data, rer_with_line, complete_data=None):
+    # Dynamic check for yen_wrapper availability
     if not HAS_YEN_WRAPPER:
-        print("Error: yen_wrapper not available. Please use alternative pathfinding methods.")
+        print("Error: yen_wrapper not available. Please restart the application or check the build.")
+        return []
+    
+    # Try to get the function dynamically
+    try:
+        yen_function = get_yen_wrapper()
+        if not yen_function:
+            print("Error: Could not get yen_wrapper function. Please restart the application.")
+            return []
+    except Exception as e:
+        print(f"Error: Failed to get yen_wrapper function: {e}")
         return []
     
     k = 10
-    paths = get_k_shortest_paths(edges, start_id, end_id, k)
+    try:
+        paths = yen_function(edges, start_id, end_id, k)
+    except Exception as e:
+        print(f"Error: Failed to calculate paths with yen_wrapper: {e}")
+        return []
     index_to_id = {idx: stop_id for idx, stop_id in enumerate(all_station_ids)}
 
     list_of_paths = []
