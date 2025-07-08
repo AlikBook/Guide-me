@@ -205,7 +205,6 @@ export default {
     initMap() {
       // Make sure the container element exists
       if (!this.$refs.mapContainer) {
-        console.error('Map container not found');
         return;
       }
 
@@ -217,9 +216,13 @@ export default {
           zoomControl: true
         });
 
-        // Add zoom event listener to show/hide station labels
+        // Add throttled zoom event listener to reduce lag
+        let zoomTimeout;
         this.map.on('zoomend', () => {
-          this.updateStationMarkers();
+          clearTimeout(zoomTimeout);
+          zoomTimeout = setTimeout(() => {
+            this.updateStationMarkers();
+          }, 100);
         });
 
         // Add OpenStreetMap tile layer
@@ -228,12 +231,12 @@ export default {
           maxZoom: 18
         }).addTo(this.map);
 
-        // Custom station icon - smaller size
+        // Custom station icon - smaller size with proper centering
         this.stationIcon = L.divIcon({
           className: 'station-marker',
           html: '<div class="station-dot"></div>',
-          iconSize: [6, 6],
-          iconAnchor: [3, 3]
+          iconSize: [12, 12],
+          iconAnchor: [6, 6]
         });
 
         // Custom transfer station icon - same size as start/end markers
@@ -244,15 +247,15 @@ export default {
           iconAnchor: [16, 16]
         });
 
-        console.log('Map initialized successfully');
+
       } catch (error) {
-        console.error('Error initializing map:', error);
+        // Error initializing map - fail silently
       }
     },
 
     async loadNetworkData() {
       try {
-        console.log('Loading station coordinates from STATION_COORDINATES variable...');
+
         
         // Load ONLY from station_coordinates endpoint (which uses STATION_COORDINATES variable)
         const response = await fetch('http://127.0.0.1:8000/station_coordinates');
@@ -262,11 +265,7 @@ export default {
         }
         
         const data = await response.json();
-        console.log('Station coordinates loaded successfully:', {
-          stationsCount: Object.keys(data.stations || {}).length,
-          linesCount: Object.keys(data.lines || {}).length,
-          firstFewStations: Object.entries(data.stations || {}).slice(0, 3)
-        });
+
         
         // Use ONLY the coordinates from STATION_COORDINATES variable
         this.stationCoordinates = data.stations;
@@ -276,7 +275,6 @@ export default {
         this.updateStationMarkers();
         
       } catch (error) {
-        console.error('Error loading station coordinates:', error);
         // Fallback to generated positions if API fails
         this.generateFallbackPositions();
       }
@@ -284,24 +282,26 @@ export default {
 
     updateStationMarkers() {
       if (!this.map) {
-        console.log('Map not ready yet');
+
         return;
       }
       
       if (!this.stations.length) {
-        console.log('No stations provided yet');
+
         return;
       }
 
-      console.log('Updating station markers using STATION_COORDINATES variable only');
-      console.log('Total stations from props:', this.stations.length);
-      console.log('Total coordinates available:', Object.keys(this.stationCoordinates).length);
-      console.log('Sample stations from props:', this.stations.slice(0, 3).map(s => s.station_name || s.station));
-      console.log('Sample coordinates available:', Object.keys(this.stationCoordinates).slice(0, 3));
 
-      // Clear existing markers
-      this.stationMarkers.forEach(marker => this.map.removeLayer(marker));
-      this.stationMarkers = [];
+
+
+
+
+
+      // Clear existing markers efficiently
+      if (this.stationMarkers.length > 0) {
+        this.stationMarkers.forEach(marker => this.map.removeLayer(marker));
+        this.stationMarkers.length = 0; // Clear array efficiently
+      }
 
       // Get stations that are part of the current trajectory (if any)
       const trajectoryStations = this.getTrajectoryStationNames();
@@ -322,15 +322,12 @@ export default {
           const lines = station.lines || [];
           let isTransfer = lines.length > 1;
           
-          // Additional check: if this station appears in multiple segments of the current trajectory
+          // For trajectory-specific transfer detection, use the new method
           if (this.selectedTrip && this.selectedTrip.stations) {
-            const stationAppearances = this.getStationSegmentCount(stationName);
-            if (stationAppearances > 1) {
-              isTransfer = true;
-            }
+            isTransfer = this.isTransferStation(stationName);
           }
           
-          console.log('Station:', stationName, 'Lines:', lines, 'IsTransfer:', isTransfer);
+
           
           const icon = isTransfer ? this.transferIcon : this.stationIcon;
           
@@ -361,13 +358,13 @@ export default {
           }
         } else {
           // Only log stations that are NOT in STATION_COORDINATES
-          console.log('Station not found in STATION_COORDINATES:', stationName);
+
         }
       });
       
-      console.log('Successfully added', this.stationMarkers.length, 'station markers from STATION_COORDINATES');
+
       if (showOnlyTrajectoryStations) {
-        console.log('Showing only stations on trajectory:', trajectoryStations.length, 'stations');
+
       }
     },
 
@@ -423,6 +420,81 @@ export default {
       return count;
     },
 
+    getLinesAtStation(stationName) {
+      if (!this.selectedTrip || !this.selectedTrip.stations) {
+        return [];
+      }
+
+      const linesAtStation = new Set();
+      
+      // Get all different lines that pass through this station in the trajectory
+      this.selectedTrip.stations.forEach(segment => {
+        Object.entries(segment).forEach(([lineKey, stations]) => {
+          // Skip transfer_time entries
+          if (lineKey === 'transfer_time') return;
+          
+          if (Array.isArray(stations)) {
+            const stationInSegment = stations.some(station => station.station === stationName);
+            if (stationInSegment) {
+              linesAtStation.add(lineKey);
+            }
+          }
+        });
+      });
+
+      return Array.from(linesAtStation);
+    },
+
+    isTransferStation(stationName) {
+      if (!this.selectedTrip || !this.selectedTrip.stations) {
+        return false;
+      }
+
+      const trajectoryStationNames = this.getTrajectoryStationNames();
+      const stationIndex = trajectoryStationNames.indexOf(stationName);
+      
+      // Can't be a transfer if it's the first, last, or not found
+      if (stationIndex <= 0 || stationIndex >= trajectoryStationNames.length - 1) {
+        return false;
+      }
+
+      // Check if there's an actual line change at this station
+      // A transfer happens when the line used to reach this station is different
+      // from the line used to continue from this station
+      
+      let previousLine = null;
+      let nextLine = null;
+      let currentStationCount = 0;
+      
+      // Go through segments to find the lines before and after this station
+      for (let segmentIndex = 0; segmentIndex < this.selectedTrip.stations.length; segmentIndex++) {
+        const segment = this.selectedTrip.stations[segmentIndex];
+        
+        Object.entries(segment).forEach(([lineKey, stations]) => {
+          if (lineKey === 'transfer_time' || !Array.isArray(stations)) return;
+          
+          stations.forEach((station, stationIndexInSegment) => {
+            if (station.station === stationName) {
+              // Found our station in this segment
+              currentStationCount++;
+              
+              // If this is the first occurrence, it could be arrival line
+              if (currentStationCount === 1) {
+                previousLine = lineKey;
+              }
+              // If this is a second occurrence, it's likely the departure line
+              else if (currentStationCount === 2) {
+                nextLine = lineKey;
+              }
+            }
+          });
+        });
+      }
+      
+      // It's a transfer if we have different lines for arrival and departure
+      return previousLine && nextLine && previousLine !== nextLine;
+    },
+
     
 
     
@@ -434,7 +506,7 @@ export default {
    
 
     generateFallbackPositions() {
-      console.log('Generating fallback positions for', this.stations.length, 'stations');
+
       // Fallback method if API fails
       const centerLat = 48.8566;
       const centerLng = 2.3522;
@@ -452,7 +524,7 @@ export default {
         this.stationCoordinates[stationName] = [lat, lng];
       });
 
-      console.log('Generated fallback coordinates for', Object.keys(this.stationCoordinates).length, 'stations');
+
       this.updateStationMarkers();
      
     },
@@ -638,7 +710,7 @@ export default {
     },
 
     resetAll() {
-      console.log('Resetting search and map view');
+
       
       // Clear the selected trip/trajectory
       this.clearTrip();
@@ -648,7 +720,7 @@ export default {
     },
 
     clearTrip() {
-      console.log('Clearing current trip');
+
       
       // Emit event to parent to clear the trip
       this.$emit('clear-trip');
@@ -1057,10 +1129,10 @@ export default {
 }
 
 :deep(.station-dot) {
-  width: 6px;
-  height: 6px;
+  width: 12px;
+  height: 12px;
   background: #2196F3;
-  border: 1px solid white;
+  border: 2px solid white;
   border-radius: 50%;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
