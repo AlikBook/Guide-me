@@ -1,8 +1,3 @@
-"""
-Auto-build utility for the Yen C extension.
-This module handles automatic building of the C extension when needed.
-"""
-
 import os
 import sys
 import subprocess
