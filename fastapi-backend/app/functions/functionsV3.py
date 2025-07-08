@@ -1223,7 +1223,7 @@ def list_of_trajet_names(line_type, line_id, depart_name, all_metro_info, rer_st
     
     elif line_type == 'rer':
         # Map RER line letter to IDFM route ID
-        from reads_and_pickles import read_RER_lines
+        from app.functions.reads_and_pickles import read_RER_lines
         rer_lines = read_RER_lines()
         target_rer_route_id = None
         for line_info in rer_lines:
@@ -2112,9 +2112,7 @@ def has_unrealistic_line_pattern(path, index_to_id, metro_info, rer_with_line):
     seen_lines = set()
     for line_info in line_sequence:
         line_key = f"{line_info[0]}_{line_info[1]}"
-        if line_key in seen_lines:
-            print(f"Unrealistic pattern detected: Line {line_info[1]} ({line_info[0]}) used multiple times")
-            return True
+        
         seen_lines.add(line_key)
     
     # Pattern 2: Too many line changes for short paths

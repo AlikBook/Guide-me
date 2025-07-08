@@ -368,10 +368,11 @@
         <!-- Colonne de droite pour la carte -->
         <div class="map-column">
           <div class="map-card">
-            <img
-              class="metro-map"
-              src="/metrof_r.png"
-              alt="Plan du métro parisien"
+            <TransitMap 
+              :stations="allStations"
+              :selectedTrip="currentTrip"
+              :allConnections="networkConnections"
+              @clear-trip="clearCurrentTrip"
             />
           </div>
         </div>
@@ -383,6 +384,7 @@
 <script setup>
 import NetworkAnalysis from '../components/Network-analysis.vue'
 import CarbonImpact from '../components/CarbonImpact.vue'
+import TransitMap from '../components/TransitMap.vue'
 import { ref, onMounted, computed, watch } from "vue";
 
 const data = ref(null);
@@ -399,13 +401,26 @@ const expandedLines = ref([]);
 const selectedDeparture = ref(null);
 const selectedArrival = ref(null);
 const showTripDetails = ref(false);
-const selectedTripIndex = ref(0); 
+const selectedTripIndex = ref(0);
+const networkConnections = ref([]); 
 
 onMounted(async () => {
-  const response = await fetch("http://127.0.0.1:8000/station_ids");
-  const result = await response.json();
-  data.value = result;
-  allStations.value = result.stations;
+  try {
+    // Load station data
+    const stationResponse = await fetch("http://127.0.0.1:8000/station_ids");
+    const stationResult = await stationResponse.json();
+    data.value = stationResult;
+    allStations.value = stationResult.stations;
+
+    // Load network data for the map
+    const networkResponse = await fetch("http://127.0.0.1:8000/network_data");
+    const networkResult = await networkResponse.json();
+    networkConnections.value = networkResult.stations;
+    
+    console.log("Loaded network data:", networkResult);
+  } catch (error) {
+    console.error("Error loading data:", error);
+  }
 });
 
 // Watch for departure time changes and recalculate trip if both stations are selected
@@ -874,6 +889,12 @@ function selectTrip(index) {
 function toggleTripDetails() {
   showTripDetails.value = !showTripDetails.value;
 }
+
+function clearCurrentTrip() {
+  console.log('Clearing current trip from Home component');
+  trip.value = null;
+  selectedTripIndex.value = 0;
+}
 </script>
 
 <style>
@@ -920,7 +941,8 @@ body {
   flex: 1;
   position: sticky;
   top: 20px;
-  height: fit-content;
+  height: calc(100vh - 120px);
+  min-height: 600px;
 }
 
 .map-card {
@@ -929,6 +951,7 @@ body {
   padding: 16px;
   box-shadow: var(--card-shadow);
   height: 100%;
+  min-height: 600px;
 }
 
 .search-section {

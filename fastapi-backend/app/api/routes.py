@@ -1,8 +1,13 @@
 from fastapi import APIRouter, Request, HTTPException
 from pydantic import BaseModel
 from app.services.metro_service import get_trip, get_all_station_ids, analyze_network_and_mst
-from app.core.auto_build import check_yen_wrapper_available
-import platform
+from app.core.station_coordinates import (
+    get_all_station_coordinates, 
+    get_station_coordinates, 
+    get_all_lines, 
+    get_line_info,
+
+)
 
 router = APIRouter()
 
@@ -36,48 +41,69 @@ async def analyze_network_endpoint(request: Request):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/system_status")
-async def system_status_endpoint(request: Request):
-    """Get system status including C extension availability."""
+@router.get("/station_coordinates")
+async def get_station_coordinates_endpoint():
+    """Get all station coordinates for the map"""
     try:
-        yen_available = getattr(request.app.state, 'yen_available', check_yen_wrapper_available())
+        coordinates = get_all_station_coordinates()
+        lines = get_all_lines()
         
-        status = {
-            "status": "ok",
-            "c_extension_available": yen_available,
-            "performance_mode": "high" if yen_available else "compatibility",
-            "platform": {
-                "system": platform.system(),
-                "machine": platform.machine(),
-                "python_version": platform.python_version()
-            },
-            "message": "High-performance pathfinding enabled" if yen_available else 
-                      "Running in compatibility mode - consider building C extension for better performance"
+        return {
+            "stations": coordinates,
+            "lines": lines,
+            "total_stations": len(coordinates)
         }
-        return status
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/build_extension")
-async def build_extension_endpoint():
-    """Manually trigger C extension build."""
+@router.get("/station_coordinates/{station_name}")
+async def get_single_station_coordinates(station_name: str):
+    """Get coordinates for a specific station"""
     try:
-        from app.core.auto_build import auto_build_yen_wrapper
+        coords = get_station_coordinates(station_name)
+        if coords is None:
+            raise HTTPException(status_code=404, detail=f"Station '{station_name}' not found")
         
-        print("🔨 Manual C extension build triggered...")
-        success = auto_build_yen_wrapper()
-        
-        if success:
-            return {
-                "status": "success", 
-                "message": "C extension built successfully",
-                "performance_mode": "high"
-            }
-        else:
-            return {
-                "status": "failed",
-                "message": "C extension build failed - see server logs for details",
-                "performance_mode": "compatibility"
-            }
+        return {
+            "station": station_name,
+            "coordinates": coords
+        }
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Build error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/network_data")
+async def get_network_data_endpoint(request: Request):
+    """Get complete network data including stations with coordinates and connections"""
+    try:
+        # Get station data from the existing system
+        data = request.app.state.metro_data
+        station_data = get_all_station_ids(data)
+        
+        # Get coordinate data
+        coordinates = get_all_station_coordinates()
+        lines = get_all_lines()
+        
+        # Enrich station data with coordinates
+        enriched_stations = []
+        for station in station_data.get("stations", []):
+            station_name = station.get("station_name")
+            coords = get_station_coordinates(station_name)
+            
+            enriched_station = {
+                **station,
+                "coordinates": coords,
+                "has_coordinates": coords is not None
+            }
+            enriched_stations.append(enriched_station)
+        
+        return {
+            "stations": enriched_stations,
+            "line_definitions": lines,
+            "coordinate_coverage": len([s for s in enriched_stations if s["has_coordinates"]]),
+            "total_stations": len(enriched_stations)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
