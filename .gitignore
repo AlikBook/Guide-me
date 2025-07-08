@@ -28,3 +28,12 @@ fastapi-backend/app/functions/container_pkl_files/all_metro_ids.pkl
 front_end/src/views/Home.vue
 fastapi-backend/app/functions/container_pkl_files/rer_connections.pkl
 fastapi-backend/app/functions/container_pkl_files/RER_detailed_trips.pkl
+fastapi-backend/app/functions/yen_compiler/build/lib.win-amd64-cpython-312/yen_wrapper.cp312-win_amd64.pyd
+fastapi-backend/app/functions/yen_compiler/yen_wrapper.cp312-win_amd64.pyd
+fastapi-backend/app/functions/yen_compiler/yen_wrapper.c
+fastapi-backend/app/functions/yen_compiler/build/temp.win-amd64-cpython-312/Release/yen_wrapper.cp312-win_amd64.exp
+fastapi-backend/app/functions/yen_compiler/build/temp.win-amd64-cpython-312/Release/yen_algorithm.obj
+fastapi-backend/app/functions/yen_compiler/build/temp.win-amd64-cpython-312/Release/yen_wrapper.obj
+fastapi-backend/app/functions/yen_compiler/yen_wrapper.cp312-win_amd64.pyd
+fastapi-backend/app/functions/yen_compiler/build/temp.win-amd64-cpython-312/Release/yen_wrapper.cp312-win_amd64.lib
+fastapi-backend/app/functions/yen_compiler/yen_wrapper.cp312-win_amd64.pyd

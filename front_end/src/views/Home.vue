@@ -365,15 +365,16 @@
           </div>
         </div>
 
-        <!-- Colonne de droite pour la carte -->
+        <!-- Colonne de droite pour l'image du métro -->
         <div class="map-column">
           <div class="map-card">
-            <TransitMap 
-              :stations="allStations"
-              :selectedTrip="currentTrip"
-              :allConnections="networkConnections"
-              @clear-trip="clearCurrentTrip"
-            />
+            <div class="metro-image-container">
+              <img 
+                src="/metrof_r.png" 
+                alt="Plan du métro parisien" 
+                class="metro-map-image"
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -384,7 +385,6 @@
 <script setup>
 import NetworkAnalysis from '../components/Network-analysis.vue'
 import CarbonImpact from '../components/CarbonImpact.vue'
-import TransitMap from '../components/TransitMap.vue'
 import { ref, onMounted, computed, watch } from "vue";
 
 const data = ref(null);
@@ -952,6 +952,25 @@ body {
   box-shadow: var(--card-shadow);
   height: 100%;
   min-height: 600px;
+}
+
+.metro-image-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 500px;
+}
+
+.metro-map-image {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .search-section {
@@ -1604,7 +1623,7 @@ body {
     position: static;
   }
 
-  .metro-map {
+  .metro-map-image {
     max-height: 400px;
   }
 }
