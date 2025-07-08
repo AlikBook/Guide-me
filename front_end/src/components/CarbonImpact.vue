@@ -85,18 +85,25 @@
   });
   </script>
   
-  <style scoped>
-  .carbon-button {
-    background-color: #10b981;
-    color: white;
-    padding: 12px 24px;
-    font-size: 16px;
-    font-weight: 600;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    margin-top: 12px;
-  }
+
+<style scoped>
+ .carbon-button {
+  padding: 10px 20px;
+  font-size: 16px;
+  font-weight: 500;
+  background-color: #10b981;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  transition: background-color 0.3s ease;
+  margin-top: 0; /* très important pour aligner sur la même ligne */
+}
+
+.carbon-button:hover {
+  background-color: #059669;
+}
   
   .popup-overlay {
     position: fixed;
@@ -110,7 +117,7 @@
   
   .popup-content {
     background: white;
-    padding: 24px;
+    padding: 10px 20px;
     border-radius: 8px;
     max-width: 400px;
     width: 100%;

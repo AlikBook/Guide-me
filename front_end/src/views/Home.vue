@@ -142,8 +142,19 @@
                   />
                 </svg>
               </button>
-              <NetworkAnalysis />
-              <CarbonImpact :trip="trip" :selectedTripIndex="selectedTripIndex" />
+              <div style="display: flex; gap: 1rem; justify-content: center; align-items: center; margin-top: 10px;">
+
+
+
+                <NetworkAnalysis />
+
+
+                <CarbonImpact :trip="trip" :selectedTripIndex="selectedTripIndex" />
+
+
+
+              </div>
+              
             </div>
           </div>
 
