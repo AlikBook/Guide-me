@@ -21,8 +21,9 @@ def check_yen_wrapper_available():
 def get_project_root():
     """Get the project root directory."""
     current_file = Path(__file__)
-    # Go up from app/core/auto_build.py to project root
-    return current_file.parent.parent.parent
+    # Go up from fastapi-backend/app/core/auto_build.py to project root
+    # auto_build.py -> core -> app -> fastapi-backend -> project_root
+    return current_file.parent.parent.parent.parent
 
 def auto_build_yen_wrapper():
     """
