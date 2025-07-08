@@ -372,6 +372,7 @@
               :stations="allStations"
               :selectedTrip="currentTrip"
               :allConnections="networkConnections"
+              @clear-trip="clearCurrentTrip"
             />
           </div>
         </div>
@@ -887,6 +888,12 @@ function selectTrip(index) {
 
 function toggleTripDetails() {
   showTripDetails.value = !showTripDetails.value;
+}
+
+function clearCurrentTrip() {
+  console.log('Clearing current trip from Home component');
+  trip.value = null;
+  selectedTripIndex.value = 0;
 }
 </script>
 

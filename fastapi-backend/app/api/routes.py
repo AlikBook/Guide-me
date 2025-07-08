@@ -6,8 +6,7 @@ from app.core.station_coordinates import (
     get_station_coordinates, 
     get_all_lines, 
     get_line_info,
-    get_line_topology,
-    get_station_connections
+
 )
 
 router = APIRouter()
@@ -108,36 +107,3 @@ async def get_network_data_endpoint(request: Request):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/line_topology/{line_id}")
-async def get_line_topology_endpoint(line_id: str):
-    """Get the ordered station list for a specific line"""
-    try:
-        topology = get_line_topology(line_id)
-        if not topology:
-            raise HTTPException(status_code=404, detail=f"Line '{line_id}' not found")
-        
-        return {
-            "line_id": line_id,
-            "stations": topology,
-            "station_count": len(topology)
-        }
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@router.get("/station_connections/{station_name}")
-async def get_station_connections_endpoint(station_name: str):
-    """Get all line connections for a station"""
-    try:
-        connections = get_station_connections(station_name)
-        coords = get_station_coordinates(station_name)
-        
-        return {
-            "station": station_name,
-            "lines": connections,
-            "coordinates": coords,
-            "is_transfer": len(connections) > 1
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))

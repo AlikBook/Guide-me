@@ -58,7 +58,8 @@
       </div>
     </div>
 
-    <div class="map-controls">      <button @click="resetView" class="map-button" title="Réinitialiser la vue">
+    <div class="map-controls">
+      <button @click="resetAll" class="map-button" title="Réinitialiser la recherche et la carte">
         <svg viewBox="0 0 24 24" width="16" height="16">
           <path fill="currentColor" d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M18,11H13L14.5,9.5L13.08,8.08L12,9.16L10.92,8.08L9.5,9.5L11,11H6V13H11L9.5,14.5L10.92,15.92L12,14.84L13.08,15.92L14.5,14.5L13,13H18V11Z"/>
         </svg>
@@ -79,18 +80,6 @@
         </svg>
       </button>
       <div class="legend" v-if="showLegend">
-        <div class="legend-item">
-          <div class="legend-color metro-line"></div>
-          <span>Lignes de métro</span>
-        </div>
-        <div class="legend-item">
-          <div class="legend-color rer-line"></div>
-          <span>Lignes RER</span>
-        </div>
-        <div class="legend-item">
-          <div class="legend-color selected-path-colored"></div>
-          <span>Trajet sélectionné (couleurs des lignes)</span>
-        </div>
         <div class="legend-item">
           <div class="legend-marker">🚇</div>
           <span>Station de départ</span>
@@ -114,24 +103,6 @@
             <li>📍 Cliquer sur une station pour voir les infos</li>
             <li>🎨 Les trajets calculés sont surlignés avec les couleurs des lignes</li>
             <li>✨ Animations sur les marqueurs de correspondance</li>
-          </ul>
-        </div>
-        <div class="help-section">
-          <strong>Symboles:</strong>
-          <ul>
-            <li>🚇 = Gare de départ (couleur de la ligne)</li>
-            <li>🏁 = Gare d'arrivée (couleur de la ligne)</li>
-            <li>🔄 = Correspondance (couleur animée)</li>
-            <li>♿ = Station accessible PMR</li>
-          </ul>
-        </div>
-        <div class="help-section">
-          <strong>Couleurs:</strong>
-          <ul>
-            <li>Chaque ligne a sa couleur officielle RATP</li>
-            <li>Trajets avec contour blanc pour meilleure visibilité</li>
-            <li>Lignes en pointillés colorés = segments du trajet</li>
-            <li>Stations orange = correspondances multiples</li>
           </ul>
         </div>
       </div>
@@ -169,7 +140,7 @@ export default {
       showLegend: true,
       showHelp: false,
       showRouteInfo: false,
-      stationCoordinates: {},
+      stationCoordinates: {}, // Only coordinates from STATION_COORDINATES variable
       lineDefinitions: {},
       
       // Paris metro/RER line colors
@@ -246,26 +217,31 @@ export default {
           zoomControl: true
         });
 
+        // Add zoom event listener to show/hide station labels
+        this.map.on('zoomend', () => {
+          this.updateStationMarkers();
+        });
+
         // Add OpenStreetMap tile layer
         L.tileLayer('https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png', {
           attribution: '© OpenStreetMap contributors',
           maxZoom: 18
         }).addTo(this.map);
 
-        // Custom station icon
+        // Custom station icon - smaller size
         this.stationIcon = L.divIcon({
           className: 'station-marker',
           html: '<div class="station-dot"></div>',
-          iconSize: [8, 8],
-          iconAnchor: [4, 4]
+          iconSize: [6, 6],
+          iconAnchor: [3, 3]
         });
 
-        // Custom transfer station icon  
+        // Custom transfer station icon - same size as start/end markers
         this.transferIcon = L.divIcon({
           className: 'transfer-marker',
-          html: '<div class="transfer-dot"></div>',
-          iconSize: [12, 12],
-          iconAnchor: [6, 6]
+          html: '<div class="transfer-dot">🔄</div>',
+          iconSize: [32, 32],
+          iconAnchor: [16, 16]
         });
 
         console.log('Map initialized successfully');
@@ -276,8 +252,9 @@ export default {
 
     async loadNetworkData() {
       try {
-        console.log('Loading network data...');
-        // Fetch station coordinates and network data
+        console.log('Loading station coordinates from STATION_COORDINATES variable...');
+        
+        // Load ONLY from station_coordinates endpoint (which uses STATION_COORDINATES variable)
         const response = await fetch('http://127.0.0.1:8000/station_coordinates');
         
         if (!response.ok) {
@@ -285,31 +262,21 @@ export default {
         }
         
         const data = await response.json();
-        console.log('Network data loaded successfully:', {
+        console.log('Station coordinates loaded successfully:', {
           stationsCount: Object.keys(data.stations || {}).length,
-          linesCount: Object.keys(data.lines || {}).length
+          linesCount: Object.keys(data.lines || {}).length,
+          firstFewStations: Object.entries(data.stations || {}).slice(0, 3)
         });
         
+        // Use ONLY the coordinates from STATION_COORDINATES variable
         this.stationCoordinates = data.stations;
         this.lineDefinitions = data.lines;
         
-        // Always load metro and RER lines first to show the network
-        this.addConnectionLines();
-        
-        // Also try fallback method to ensure lines are visible
-        this.drawLinesFallback();
-        
-        // Then load station markers if available
+        // Update station markers (no connection lines, only stations and trajectory)
         this.updateStationMarkers();
         
-        // If allConnections prop is available, use it as fallback
-        if (this.allConnections && this.allConnections.length > 0) {
-          console.log('Using allConnections prop as additional data:', this.allConnections.length);
-          this.drawLinesFromConnections();
-        }
-        
       } catch (error) {
-        console.error('Error loading network data:', error);
+        console.error('Error loading station coordinates:', error);
         // Fallback to generated positions if API fails
         this.generateFallbackPositions();
       }
@@ -326,20 +293,45 @@ export default {
         return;
       }
 
-      console.log('Updating station markers:', this.stations.length, 'stations');
+      console.log('Updating station markers using STATION_COORDINATES variable only');
+      console.log('Total stations from props:', this.stations.length);
+      console.log('Total coordinates available:', Object.keys(this.stationCoordinates).length);
+      console.log('Sample stations from props:', this.stations.slice(0, 3).map(s => s.station_name || s.station));
+      console.log('Sample coordinates available:', Object.keys(this.stationCoordinates).slice(0, 3));
 
       // Clear existing markers
       this.stationMarkers.forEach(marker => this.map.removeLayer(marker));
       this.stationMarkers = [];
 
-      // Add markers for stations with coordinates
+      // Get stations that are part of the current trajectory (if any)
+      const trajectoryStations = this.getTrajectoryStationNames();
+      const showOnlyTrajectoryStations = trajectoryStations.length > 0;
+
+      // Add markers ONLY for stations that exist in STATION_COORDINATES
       this.stations.forEach(station => {
         const stationName = station.station_name || station.station;
         const coords = this.stationCoordinates[stationName];
         
         if (coords) {
+          // If we have a trajectory, only show stations that are part of it
+          if (showOnlyTrajectoryStations && !trajectoryStations.includes(stationName)) {
+            return; // Skip this station
+          }
+
+          // Determine if this is a transfer station
           const lines = station.lines || [];
-          const isTransfer = lines.length > 1;
+          let isTransfer = lines.length > 1;
+          
+          // Additional check: if this station appears in multiple segments of the current trajectory
+          if (this.selectedTrip && this.selectedTrip.stations) {
+            const stationAppearances = this.getStationSegmentCount(stationName);
+            if (stationAppearances > 1) {
+              isTransfer = true;
+            }
+          }
+          
+          console.log('Station:', stationName, 'Lines:', lines, 'IsTransfer:', isTransfer);
+          
           const icon = isTransfer ? this.transferIcon : this.stationIcon;
           
           const marker = L.marker(coords, { icon })
@@ -350,226 +342,96 @@ export default {
             .addTo(this.map);
             
           this.stationMarkers.push(marker);
+          
+          // Add station name label if we're showing a trajectory and zoomed in enough
+          if (showOnlyTrajectoryStations && this.map.getZoom() >= 14) {
+            // Calculate dynamic width based on text length, with min/max bounds
+            const textWidth = Math.min(Math.max(80, stationName.length * 7 + 16), 200);
+            const label = L.marker(coords, {
+              icon: L.divIcon({
+                className: 'station-label',
+                html: `<div class="station-name-label">${stationName}</div>`,
+                iconSize: [textWidth, 24], // Dynamic width, fixed height
+                iconAnchor: [textWidth / 2, -28] // Center above the station marker
+              }),
+              interactive: false // Don't intercept clicks
+            }).addTo(this.map);
+            
+            this.stationMarkers.push(label);
+          }
         } else {
-          console.log('No coordinates found for station:', stationName);
+          // Only log stations that are NOT in STATION_COORDINATES
+          console.log('Station not found in STATION_COORDINATES:', stationName);
         }
       });
       
-      console.log('Added', this.stationMarkers.length, 'station markers');
-    },
-
-    addConnectionLines() {
-      if (!this.map || !this.lineDefinitions) return;
-
-      // Clear existing lines
-      this.connectionLines.forEach(line => this.map.removeLayer(line));
-      this.connectionLines = [];
-
-      // Fetch line topology from backend and draw lines
-      this.drawMetroLines();
-    },
-
-    async drawMetroLines() {
-      try {
-        console.log('Drawing metro lines...');
-        // Get line topology from backend
-        const response = await fetch('http://127.0.0.1:8000/station_coordinates');
-        const data = await response.json();
-        
-        // Get all stations from backend to draw lines
-        const stationsResponse = await fetch('http://127.0.0.1:8000/station_ids');
-        const stationsData = await stationsResponse.json();
-        const allStationsData = stationsData.stations || [];
-        
-        console.log('Available lines:', Object.keys(data.lines));
-        console.log('Available stations:', allStationsData.length);
-        
-        // Draw lines for each metro/RER line using topology
-        Object.entries(data.lines).forEach(([lineId, lineInfo]) => {
-          console.log(`Drawing line ${lineId}:`, lineInfo);
-          this.drawSingleLineWithData(lineId, lineInfo, allStationsData);
-        });
-        
-      } catch (error) {
-        console.error('Error loading line topology:', error);
-        // Fallback to grouping by station data
-        this.drawLinesFallback();
+      console.log('Successfully added', this.stationMarkers.length, 'station markers from STATION_COORDINATES');
+      if (showOnlyTrajectoryStations) {
+        console.log('Showing only stations on trajectory:', trajectoryStations.length, 'stations');
       }
     },
 
-    drawSingleLineWithData(lineId, lineInfo, allStationsData) {
-      console.log(`Processing line ${lineId}...`);
-      // Get stations for this line from backend data
-      const lineStations = [];
-      
-      allStationsData.forEach(station => {
-        const stationName = station.station_name || station.station;
-        const coords = this.stationCoordinates[stationName];
-        const stationLine = station.line;
-        
-        if (coords && stationLine === lineId) {
-          lineStations.push({
-            name: stationName,
-            lat: coords[0],
-            lng: coords[1],
-            order: this.getStationOrder(stationName, lineId)
-          });
-        }
-      });
-
-      console.log(`Line ${lineId} has ${lineStations.length} stations`);
-      if (lineStations.length < 2) return;
-
-      // Sort stations by their order on the line
-      lineStations.sort((a, b) => a.order - b.order);
-      
-      const coordinates = lineStations.map(station => [station.lat, station.lng]);
-      const color = lineInfo.color || this.getLineColor(lineId);
-      
-      console.log(`Drawing line ${lineId} with color ${color} and ${coordinates.length} coordinates`);
-      
-      const polyline = L.polyline(coordinates, {
-        color: color,
-        weight: 4,
-        opacity: 0.8,
-        className: `line-${lineId}`
-      }).addTo(this.map);
-      
-      // Add line label
-      if (coordinates.length > 0) {
-        const midPoint = coordinates[Math.floor(coordinates.length / 2)];
-        const lineLabel = L.marker(midPoint, {
-          icon: L.divIcon({
-            className: 'line-label',
-            html: `<div class="line-badge" style="background-color: ${color};">${lineInfo.type === 'rer' ? 'RER ' : ''}${lineId}</div>`,
-            iconSize: [30, 20],
-            iconAnchor: [15, 10]
-          })
-        }).addTo(this.map);
-        
-        this.connectionLines.push(lineLabel);
+    getTrajectoryStationNames() {
+      if (!this.selectedTrip || !this.selectedTrip.stations) {
+        return [];
       }
-      
-      this.connectionLines.push(polyline);
-      console.log(`Successfully added line ${lineId} to map`);
-    },
 
-    drawSingleLine(lineId, lineInfo) {
-      // Get stations for this line from our station data
-      const lineStations = [];
+      const stationNames = [];
       
-      this.stations.forEach(station => {
-        const stationName = station.station_name || station.station;
-        const coords = this.stationCoordinates[stationName];
-        const lines = station.lines || [];
-        
-        if (coords && lines.includes(lineId)) {
-          lineStations.push({
-            name: stationName,
-            lat: coords[0],
-            lng: coords[1],
-            order: this.getStationOrder(stationName, lineId)
-          });
-        }
-      });
-
-      if (lineStations.length < 2) return;
-
-      // Sort stations by their order on the line
-      lineStations.sort((a, b) => a.order - b.order);
-      
-      const coordinates = lineStations.map(station => [station.lat, station.lng]);
-      const color = lineInfo.color || this.getLineColor(lineId);
-      
-      const polyline = L.polyline(coordinates, {
-        color: color,
-        weight: 4,
-        opacity: 0.8,
-        className: `line-${lineId}`
-      }).addTo(this.map);
-      
-      // Add line label
-      if (coordinates.length > 0) {
-        const midPoint = coordinates[Math.floor(coordinates.length / 2)];
-        const lineLabel = L.marker(midPoint, {
-          icon: L.divIcon({
-            className: 'line-label',
-            html: `<div class="line-badge" style="background-color: ${color};">${lineInfo.type === 'rer' ? 'RER ' : ''}${lineId}</div>`,
-            iconSize: [30, 20],
-            iconAnchor: [15, 10]
-          })
-        }).addTo(this.map);
-        
-        this.connectionLines.push(lineLabel);
-      }
-      
-      this.connectionLines.push(polyline);
-    },
-
-    getStationOrder(stationName, lineId) {
-      // This would ideally come from the backend, but for now we'll use a simple approach
-      // Return a hash-based order to maintain consistency
-      return Array.from(stationName).reduce((hash, char) => {
-        return char.charCodeAt(0) + ((hash << 5) - hash);
-      }, 0);
-    },
-
-    drawLinesFallback() {
-      console.log('Using fallback line drawing method...');
-      // Fallback method - group stations by line
-      const lineStations = {};
-      
-      // Use either this.stations or this.allConnections
-      const stationsData = this.stations.length > 0 ? this.stations : this.allConnections;
-      console.log('Drawing lines from stations data:', stationsData.length, 'stations');
-      
-      stationsData.forEach(station => {
-        const stationName = station.station_name || station.station;
-        const coords = this.stationCoordinates[stationName];
-        const lines = station.lines || [station.line]; // Handle both formats
-        
-        if (coords) {
-          lines.forEach(line => {
-            if (line && line !== 'undefined') {
-              if (!lineStations[line]) {
-                lineStations[line] = [];
+      // Extract station names from the trajectory
+      this.selectedTrip.stations.forEach(segment => {
+        Object.entries(segment).forEach(([lineKey, stations]) => {
+          // Skip transfer_time entries
+          if (lineKey === 'transfer_time') return;
+          
+          if (Array.isArray(stations)) {
+            stations.forEach(station => {
+              const stationName = station.station;
+              if (stationName && !stationNames.includes(stationName)) {
+                stationNames.push(stationName);
               }
-              lineStations[line].push({
-                name: stationName,
-                lat: coords[0],
-                lng: coords[1]
-              });
-            }
-          });
-        }
+            });
+          }
+        });
       });
 
-      console.log('Found lines:', Object.keys(lineStations));
-
-      // Draw lines for each metro/RER line
-      Object.entries(lineStations).forEach(([line, stations]) => {
-        if (stations.length >= 2) {
-          console.log(`Drawing fallback line ${line} with ${stations.length} stations`);
-          
-          // Sort stations by geographical position to create a logical line
-          stations.sort((a, b) => a.lat - b.lat);
-          
-          const coordinates = stations.map(station => [station.lat, station.lng]);
-          const color = this.getLineColor(line);
-          
-          const polyline = L.polyline(coordinates, {
-            color: color,
-            weight: 3,
-            opacity: 0.7,
-            className: `fallback-line-${line}`
-          }).addTo(this.map);
-          
-          this.connectionLines.push(polyline);
-        }
-      });
-      
-      console.log('Fallback line drawing completed. Total lines drawn:', Object.keys(lineStations).length);
+      return stationNames;
     },
+
+    getStationSegmentCount(stationName) {
+      if (!this.selectedTrip || !this.selectedTrip.stations) {
+        return 0;
+      }
+
+      let count = 0;
+      
+      // Count in how many different line segments this station appears
+      this.selectedTrip.stations.forEach(segment => {
+        Object.entries(segment).forEach(([lineKey, stations]) => {
+          // Skip transfer_time entries
+          if (lineKey === 'transfer_time') return;
+          
+          if (Array.isArray(stations)) {
+            const stationInSegment = stations.some(station => station.station === stationName);
+            if (stationInSegment) {
+              count++;
+            }
+          }
+        });
+      });
+
+      return count;
+    },
+
+    
+
+    
+
+    
+
+    
+      
+   
 
     generateFallbackPositions() {
       console.log('Generating fallback positions for', this.stations.length, 'stations');
@@ -592,7 +454,7 @@ export default {
 
       console.log('Generated fallback coordinates for', Object.keys(this.stationCoordinates).length, 'stations');
       this.updateStationMarkers();
-      this.addConnectionLines();
+     
     },
 
     updateTrajectory() {
@@ -600,7 +462,11 @@ export default {
       this.trajectoryLines.forEach(line => this.map.removeLayer(line));
       this.trajectoryLines = [];
 
-      if (!this.selectedTrip || !this.showTrajectory) return;
+      if (!this.selectedTrip || !this.showTrajectory) {
+        // No trajectory selected - show all stations
+        this.updateStationMarkers();
+        return;
+      }
 
       // Extract and highlight the trajectory
       this.highlightSelectedPath();
@@ -654,54 +520,25 @@ export default {
         const coordinates = segment.stations.map(s => s.coords);
         const lineColor = this.getLineColorFromKey(segment.lineKey);
         
-        // Main trajectory line with actual line color
-        const trajectoryLine = L.polyline(coordinates, {
-          color: lineColor,
-          weight: 8,
-          opacity: 0.9,
-          className: `trajectory-segment-${index}`
-        }).addTo(this.map);
-
-        // Highlighted overlay with line color but stronger emphasis
-        const highlightLine = L.polyline(coordinates, {
-          color: lineColor,
-          weight: 12,
-          opacity: 0.7,
-          dashArray: '15, 8',
-          className: `trajectory-highlight-${index}`,
-          // Add a subtle shadow effect
-          shadowColor: '#000000',
-          shadowWeight: 16,
-          shadowOpacity: 0.3
-        }).addTo(this.map);
-
-        // Add white outline for better visibility
+        // Add white outline for better visibility - draw FIRST (underneath)
         const outlineLine = L.polyline(coordinates, {
           color: '#FFFFFF',
-          weight: 14,
-          opacity: 0.6,
-          className: `trajectory-outline-${index}`
+          weight: 18,
+          opacity: 1.0,
+          className: `trajectory-outline-${index}`,
+          interactive: false // Don't intercept clicks
         }).addTo(this.map);
 
-        // Store lines in correct order (outline first, then highlight, then main)
-        this.trajectoryLines.push(outlineLine, highlightLine, trajectoryLine);
+        // Main trajectory line with actual line color - draw SECOND (on top)
+        const trajectoryLine = L.polyline(coordinates, {
+          color: lineColor,
+          weight: 14,
+          opacity: 1.0,
+          className: `trajectory-segment-${index}`,
+          interactive: false // Don't intercept clicks
+        }).addTo(this.map);
 
-        // Add segment markers with line color
-        if (coordinates.length > 0) {
-          // Start of segment marker (except for first segment)
-          if (index > 0) {
-            const transferMarker = L.marker(coordinates[0], {
-              icon: L.divIcon({
-                className: 'transfer-point',
-                html: `<div class="transfer-indicator" style="background: linear-gradient(45deg, ${lineColor}, ${this.lightenColor(lineColor, 20)});">🔄</div>`,
-                iconSize: [28, 28],
-                iconAnchor: [14, 14]
-              })
-            }).bindPopup(`<strong>Correspondance</strong><br>${segment.lineKey}`)
-            .addTo(this.map);
-            this.trajectoryLines.push(transferMarker);
-          }
-        }
+        this.trajectoryLines.push(outlineLine, trajectoryLine);
       });
 
       // Add start and end markers
@@ -709,27 +546,26 @@ export default {
         const startStation = allPathStations[0];
         const endStation = allPathStations[allPathStations.length - 1];
         
-        // Get colors for start and end lines
         const startLineColor = this.getLineColorFromKey(startStation.lineKey);
         const endLineColor = this.getLineColorFromKey(endStation.lineKey);
 
         const startMarker = L.marker(startStation.coords, {
           icon: L.divIcon({
             className: 'journey-start',
-            html: `<div class="journey-point start-point" style="background: linear-gradient(45deg, ${startLineColor}, ${this.lightenColor(startLineColor, 30)}); border: 3px solid white; box-shadow: 0 3px 10px rgba(0,0,0,0.4);">🚇</div>`,
+            html: `<div class="journey-point start-point" style="background: ${startLineColor};">🚇</div>`,
             iconSize: [32, 32],
             iconAnchor: [16, 16]
           })
-        }).bindPopup(`<strong>Départ:</strong> ${startStation.name}<br><span style="color: ${startLineColor}; font-weight: bold;">${startStation.lineKey}</span>`).addTo(this.map);
+        }).addTo(this.map);
 
         const endMarker = L.marker(endStation.coords, {
           icon: L.divIcon({
             className: 'journey-end',
-            html: `<div class="journey-point end-point" style="background: linear-gradient(45deg, ${endLineColor}, ${this.lightenColor(endLineColor, 30)}); border: 3px solid white; box-shadow: 0 3px 10px rgba(0,0,0,0.4);">🏁</div>`,
+            html: `<div class="journey-point end-point" style="background: ${endLineColor};">🏁</div>`,
             iconSize: [32, 32],
             iconAnchor: [16, 16]
           })
-        }).bindPopup(`<strong>Arrivée:</strong> ${endStation.name}<br><span style="color: ${endLineColor}; font-weight: bold;">${endStation.lineKey}</span>`).addTo(this.map);
+        }).addTo(this.map);
 
         this.trajectoryLines.push(startMarker, endMarker);
       }
@@ -741,6 +577,9 @@ export default {
           padding: [30, 30]
         });
       }
+      
+      // Update station markers to show only trajectory stations
+      this.updateStationMarkers();
     },
 
     getLineColorFromKey(lineKey) {
@@ -798,8 +637,38 @@ export default {
       this.trajectoryLines = [];
     },
 
-    resetView() {
+    resetAll() {
+      console.log('Resetting search and map view');
+      
+      // Clear the selected trip/trajectory
+      this.clearTrip();
+      
+      // Reset map view to center on Paris
       this.map.setView(this.parisCenter, this.defaultZoom);
+    },
+
+    clearTrip() {
+      console.log('Clearing current trip');
+      
+      // Emit event to parent to clear the trip
+      this.$emit('clear-trip');
+      
+      // Clear trajectory lines from the map
+      this.clearTrajectoryLines();
+      
+      // Show all stations again
+      this.showAllStations();
+    },
+
+    clearTrajectoryLines() {
+      // Remove trajectory lines from map
+      this.trajectoryLines.forEach(line => this.map.removeLayer(line));
+      this.trajectoryLines = [];
+    },
+
+    showAllStations() {
+      // Update markers to show all stations (not just trajectory stations)
+      this.updateStationMarkers();
     },
 
     toggleTrajectory() {
@@ -809,54 +678,6 @@ export default {
 
     toggleLegend() {
       this.showLegend = !this.showLegend;
-    },
-
-    drawLinesFromConnections() {
-      console.log('Drawing lines from allConnections...');
-      // Group connections by line
-      const lineGroups = {};
-      
-      this.allConnections.forEach(station => {
-        const stationName = station.station_name || station.station;
-        const coords = this.stationCoordinates[stationName];
-        const lines = station.lines || [];
-        
-        if (coords) {
-          lines.forEach(line => {
-            if (!lineGroups[line]) {
-              lineGroups[line] = [];
-            }
-            lineGroups[line].push({
-              name: stationName,
-              lat: coords[0],
-              lng: coords[1],
-              order: this.getStationOrder(stationName, line)
-            });
-          });
-        }
-      });
-
-      // Draw each line
-      Object.entries(lineGroups).forEach(([lineId, stations]) => {
-        if (stations.length >= 2) {
-          console.log(`Drawing connection line ${lineId} with ${stations.length} stations`);
-          
-          // Sort stations by order
-          stations.sort((a, b) => a.order - b.order);
-          
-          const coordinates = stations.map(station => [station.lat, station.lng]);
-          const color = this.getLineColor(lineId);
-          
-          const polyline = L.polyline(coordinates, {
-            color: color,
-            weight: 3,
-            opacity: 0.7,
-            className: `connection-line-${lineId}`
-          }).addTo(this.map);
-          
-          this.connectionLines.push(polyline);
-        }
-      });
     }
   }
 };
@@ -1186,10 +1007,6 @@ export default {
   background: #E2231A;
 }
 
-.legend-color.selected-path {
-  background: #FF0000;
-}
-
 .legend-color.selected-path-colored {
   background: linear-gradient(90deg, #0055C8, #E2231A, #82DC73);
   border: 2px solid white;
@@ -1212,123 +1029,61 @@ export default {
 :deep(.station-marker) {
   background: transparent;
   border: none;
+  z-index: 1000; /* Ensure stations are above trajectory lines */
+}
+
+:deep(.station-label) {
+  background: transparent;
+  border: none;
+  z-index: 999; /* Below station markers but above trajectory lines */
+}
+
+:deep(.station-name-label) {
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: bold;
+  color: #333;
+  text-align: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  white-space: nowrap;
+  pointer-events: none; /* Don't intercept clicks */
+  min-width: fit-content;
+  max-width: 200px; /* Prevent extremely long names from being too wide */
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 :deep(.station-dot) {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
   background: #2196F3;
-  border: 2px solid white;
+  border: 1px solid white;
   border-radius: 50%;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 :deep(.transfer-marker) {
   background: transparent;
   border: none;
+  z-index: 1001; /* Above regular stations */
 }
 
 :deep(.transfer-dot) {
-  width: 12px;
-  height: 12px;
+  width: 32px;
+  height: 32px;
   background: #FF9800;
-  border: 2px solid white;
+  border: 3px solid white;
   border-radius: 50%;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-}
-
-:deep(.station-popup) {
-  font-family: inherit;
-}
-
-:deep(.station-popup .lines) {
-  color: #666;
-  font-size: 12px;
-}
-
-:deep(.station-popup .wheelchair) {
-  color: #4CAF50;
-  font-size: 12px;
-}
-
-:deep(.start-marker), :deep(.end-marker) {
-  background: transparent;
-  border: none;
-}
-
-:deep(.start-dot), :deep(.end-dot) {
-  width: 20px;
-  height: 20px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.4);
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.9);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-  font-size: 12px;
-}
-
-:deep(.line-label) {
-  background: transparent;
-  border: none;
-}
-
-:deep(.line-badge) {
-  padding: 2px 6px;
-  border-radius: 4px;
+  font-size: 16px;
   color: white;
-  font-size: 10px;
   font-weight: bold;
-  text-align: center;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-  min-width: 20px;
-}
-
-:deep(.journey-start), :deep(.journey-end), :deep(.transfer-point) {
-  background: transparent;
-  border: none;
-}
-
-:deep(.journey-point) {
-  width: 28px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  font-size: 14px;
-  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.4);
-}
-
-:deep(.start-point) {
-  background: linear-gradient(45deg, #4CAF50, #66BB6A);
-  color: white;
-}
-
-:deep(.end-point) {
-  background: linear-gradient(45deg, #F44336, #EF5350);
-  color: white;
-}
-
-:deep(.transfer-indicator) {
-  width: 28px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  color: white;
-  font-size: 14px;
-  font-weight: bold;
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4);
-  border: 2px solid white;
-  animation: pulse 2s infinite;
-}
-
-@keyframes pulse {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.1); }
-  100% { transform: scale(1); }
 }
 
 :deep(.journey-point) {
@@ -1340,13 +1095,8 @@ export default {
   border-radius: 50%;
   font-size: 16px;
   font-weight: bold;
-  animation: bounce 3s infinite;
-}
-
-@keyframes bounce {
-  0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
-  40% { transform: translateY(-3px); }
-  60% { transform: translateY(-2px); }
+  border: 3px solid white;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.4);
 }
 
 /* Responsive design */
