@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=45", "wheel", "Cython>=0.29.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "yen-wrapper"
+version = "1.0.0"
+description = "Fast C implementation of Yen's K-shortest paths algorithm"
+requires-python = ">=3.9"
+dependencies = []
+authors = [
+    {name = "Your Name", email = "your.email@example.com"},
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: C",
+    "Topic :: Scientific/Engineering :: Mathematics",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+
+[tool.cibuildwheel]
+build = "cp39-* cp310-* cp311-* cp312-*"
+skip = "*-win32 *-manylinux_i686"
+before-build = "pip install cython"
