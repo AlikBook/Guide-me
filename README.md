@@ -1,24 +1,24 @@
 # Master_camp_project
 
-This is a full stack project with a **Front End** built using modern JavaScript frameworks and a **Back End** powered by **FastAPI**.
+Ceci est un projet full stack avec un **Front End** développé à l'aide de frameworks JavaScript modernes, et un **Back End** propulsé par **FastAPI**.
 
 ---
 
 ## 🖥️ Front End
 
-📁 Navigate to the `front_end` directory:
+📁 Accédez au dossier `front_end` :
 
 ```bash
 cd front_end
 ```
 
-🔧 Install dependencies:
+🔧 Installez les dépendances :
 
 ```bash
 npm install
 ```
 
-🚀 Start the development server:
+🚀 Lancez le serveur de développement :
 
 ```bash
 npm run dev
@@ -28,22 +28,35 @@ npm run dev
 
 ## 🧠 Back End
 
-📁 Navigate to the `fastapi-backend` directory:
+📁 Accédez au dossier `fastapi-backend` :
 
 ```bash
 cd fastapi-backend
 ```
 
-🐍 Install Python dependencies:
+🐍 Installez les dépendances Python :
 
 ```bash
 pip install -r requirements.txt
 ```
 
-🔥 Run the FastAPI server:
+🔥 Lancez le serveur FastAPI :
 
 ```bash
 python -m uvicorn app.main:app --reload
 ```
 
 ---
+
+## ⚙️ Pré-requis supplémentaires
+
+🛠️ Pour pouvoir utiliser **Cython** et l’implémentation de **l’algorithme de Yen**, il est nécessaire d’avoir installé les **compilateurs C de Microsoft** (par exemple via l’installation de **Microsoft C++ Build Tools**).
+
+📂 Placez tous les fichiers texte du GTFS **IDFM** fournis par l’**Efrei** dans le dossier suivant :
+
+```bash
+fastapi-backend/app/V2_text_files
+```
+
+Ces fichiers sont indispensables pour que le traitement des données de transport fonctionne correctement.
+
