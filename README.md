@@ -1,7 +1,6 @@
 # Master_camp_project
 
-Ceci est un projet full stack avec un **Front End** développé à l'aide de frameworks JavaScript modernes, et un **Back End** propulsé par **FastAPI**.
-
+Ceci est notre projet sur le réseau de métro et RER parisien. Il s’agit d’une application full stack avec un Front End développé en Vue.js et un Back End propulsé par FastAPI.
 ---
 
 ## 🖥️ Front End
