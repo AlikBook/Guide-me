@@ -6,6 +6,7 @@ import heapq
 
 
 global complete_data
+global lines_id_name_relation
 
 BASE_DIR = Path(__file__).resolve().parent
 def create_metro_ids():
@@ -409,7 +410,7 @@ def calculate_path_and_time(start_id, end_id, graph, metro_info, filtered_metro_
         for station in line_to_take:
             if station[2] == line_number[1]:
                 station_info = {
-                    "id": str(id_to_index[station[0]]),
+                    "id": str(station[0]),
                     "station": station[1]
             }
                 if key not in stations_by_line:
@@ -696,6 +697,18 @@ def geojson_metro_filter(file: dict) -> dict:
 
     return file
 
+def lines_id_relation() -> dict:
+    """
+    Fonction qui retourne la realtion entre le nom des lignes et leur id
+    ------------------
+    return format:
+    {
+        <line_id (str)>: <line_name (str)>
+    }
+    """
+    global lines_id_name_relation
+    return lines_id_name_relation
+
 def courses_info() -> dict:
     """
     Fonction qui retourne les infos des parcours entre les stations des transports
@@ -731,7 +744,7 @@ def courses_info() -> dict:
         trajects_per_metro = get_trajets_for_metro()
         list_of_trajet = get_max_len(trajects_per_metro)
 
-        concerned_lines = {v["id"]: k for k, v in lines_info()["Lines"].items()}
+        concerned_lines = lines_id_relation()
         return_data = {k: {} for k in concerned_lines.keys()}
         lines_trajects = {}
         for i in range(len(list_of_trajet)): # Création de lines_trajects
@@ -842,6 +855,12 @@ def tmp_association_stops_lines_traces():
     courses = courses_info()
     positions = stops_position()
 
+    stops_by_line = {}
+    for stop_id, info in positions.items():
+        if info["ref"] != -1:
+            line = str(info["line"])
+            stops_by_line.setdefault(line, []).append((stop_id, info))
+
     with open(pathfile, "r", encoding="utf-8") as f:
         file = json.load(f)
 
@@ -851,17 +870,50 @@ def tmp_association_stops_lines_traces():
             if feature["properties"]["metro"] == 1:
                 line_id = feature["properties"]["idrefligc"]
                 line_courses = courses[line_id]
-                start = feature["geometry"]["coordinates"][1]
+                start = feature["geometry"]["coordinates"][0]
                 end = feature["geometry"]["coordinates"][-1]
                 start_id = ""
                 end_id = ""
+                shape_id = ""
+
+                best_start = 69
+                """min(
+                    stops_by_line.get(line_id, []),
+                    key=lambda si: (start[0]-float(si[1]["long"]))**2 + (start[1]-float(si[1]["lat"]))**2,
+                    default=(None, None)
+                )"""
+                
+                best_end = 70
                 for shape_id, course in line_courses.items():
                     stop_1 = positions[course["start_id"]]
                     stop_2 = positions[course["end_id"]]
-                    if ((start[0] - float(stop_1["long"]))**2 + (start[1] - float(stop_1["lat"]))**2)**0.5 < 0.02 and ((end[0] - float(stop_2["long"]))**2 + (end[1] - float(stop_2["lat"]))**2)**0.5 < 0.02:
+
+                    if stop_1["ref"] != -1 and stop_2["ref"] != -1 and ((start[0] - float(stop_1["long"]))**2 + (start[1] - float(stop_1["lat"]))**2)**0.5 < best_start and ((end[0] - float(stop_2["long"]))**2 + (end[1] - float(stop_2["lat"]))**2)**0.5 < best_end:
+                        best_start = ((start[0] - float(stop_1["long"]))**2 + (start[1] - float(stop_1["lat"]))**2)**0.5
+                        start_id = positions[course["start_id"]]["ref"]
+                        best_end = ((end[0] - float(stop_2["long"]))**2 + (end[1] - float(stop_2["lat"]))**2)**0.5
+                        end_id = positions[course["end_id"]]["ref"]
+
+                """min(
+                    stops_by_line.get(line_id, []),
+                    key=lambda si: (end[0]-float(si[1]["long"]))**2 + (end[1]-float(si[1]["lat"]))**2,
+                    default=(None, None)
+                )"""
+
+
+                """start_id, _ = best_start
+                end_id,   _ = best_end"""
+                shape_id = str(line_id) + "_" + start_id + "_" + end_id
+
+                """for shape_id, course in line_courses.items():
+                    stop_1 = positions[course["start_id"]]
+                    stop_2 = positions[course["end_id"]]
+                    if stop_1["ref"] != -1 and stop_2["ref"] != -1 and ((start[0] - float(stop_1["long"]))**2 + (start[1] - float(stop_1["lat"]))**2)**0.5 < 0.001 and ((end[0] - float(stop_2["long"]))**2 + (end[1] - float(stop_2["lat"]))**2)**0.5 < 0.001:
                         start_id = course["start_id"]
                         end_id = course["end_id"]
-                        break
+                        break"""
+                if start_id == "":
+                    print(feature["properties"]["shape_leng"])
                 feature["properties"]["start_id"] = start_id
                 feature["properties"]["end_id"] = end_id
                 feature["properties"]["shape_id"] = shape_id
@@ -874,3 +926,7 @@ def tmp_association_stops_lines_traces():
                         
         
     return
+
+lines_id_name_relation = {v["id"]: k for k, v in lines_info()["Lines"].items()}
+
+# tmp_association_stops_lines_traces()

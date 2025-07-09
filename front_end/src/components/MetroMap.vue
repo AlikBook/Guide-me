@@ -3,7 +3,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import 'ol/ol.css'
 import Feature from 'ol/Feature.js';
 import Map from 'ol/Map';
@@ -23,13 +23,14 @@ import Fill from 'ol/style/Fill.js';
 // import Icon from 'ol/style/Icon.js';
 import Stroke from 'ol/style/Stroke.js';
 import Style from 'ol/style/Style.js';
+import LineString from 'ol/geom/LineString.js';
 // import { apply } from 'ol-mapbox-style';
 import { fromLonLat } from 'ol/proj';
 
 // Variable de base
 const mapContainer = ref(null)
 const backendAdress = 'http://127.0.0.1:8000'
-const data = ref(null)
+const metroPoints = ref(null)
 
 // Location et limites V1 (pixels)
 const metroImageSize = {x: 987, y: 952}
@@ -47,37 +48,51 @@ const linesColors = ref(null)
 const API_KEY = "vLhXmBp5kOsQj3uKFlLZ"
 const linesInfo = ref(null)
 const metroLinesGeojson = ref(null)
-/*const pointStyle = new Style({
-    image: new Circle({
-      radius: 3.5,
-      fill: new Fill({
-        color: 'white',
-      }),
-      stroke: new Stroke({
-        color: 'red',
-        width: 1.5,
-      }),
-    }),
-  });*/
+let linesIdName
+let linesLayer
+let stationLayer
+
+// Vaiables de styles par défaut
+const DEFAULT_LINE_WIDTH = 3
+const LOW_LINE_WIDTH = 1
+const HIGHLIGHT_LINE_DELTA = 3
+
+const DEFAULT_STOP_RADIUS = 3.5
+const LOW_STOP_RADIUS = 1
+const HIGHLIGHT_STOP_DELTA = 2
 
 // Numéro de la version du projet
 const version = 2
+
+const props = defineProps({
+  trip: Object
+})
+
+watch(() => props.trip, (newVal, oldVal) => {
+  console.log(`La prop a changé : ${JSON.stringify(oldVal, null, 2)} → ${JSON.stringify(newVal, null, 2)}`)
+  if(newVal !== ''){
+    highlightCourse(newVal);
+  } else {
+    resetHighlight()
+  }
+})
 
 onMounted( async () => {
   // Génération de l'affichage des stations
   await getLinesInfo()
   await getMetroPoints()
   setStationPoints()
+  getLines_id()
   
   // Affichage des lignes
   await getLinesTraces()
-  let linesLayer =  await setLinesTraces()
+  linesLayer =  await setLinesTraces()
 
   // Couche pour l'affichage des éléments vectoriels
   const vectorSource = new VectorSource({
     features: features,
   });
-  const stationLayer = new VectorLayer({
+  stationLayer = new VectorLayer({
     source: vectorSource,
   });
 
@@ -147,6 +162,11 @@ onMounted( async () => {
       container.removeAttribute('title');
     }
   });
+
+  // Affichage du possible trajet
+  if(props.trip !== null){
+    highlightCourse(props.trip)
+  }
 })
 
 async function getMetroPoints(){
@@ -155,11 +175,11 @@ async function getMetroPoints(){
    */
   if(version == 1){
     const response = await fetch( backendAdress + '/stations_position')
-    data.value = await response.json()
+    metroPoints.value = await response.json()
   }
   else if(version == 2){
     const response = await fetch( backendAdress + '/stops_position')
-    data.value = await response.json()
+    metroPoints.value = await response.json()
   }
 }
 
@@ -178,6 +198,16 @@ async function getLinesTraces(){
   if(version == 2){
     const response = await fetch( backendAdress + '/metro_lines.geojson')
     metroLinesGeojson.value = await response.json()
+  }
+}
+
+async function getLines_id(){
+   /**
+   * Fonction qui récupère la relation entre le nom des lignes et leur id
+   */
+  if(version == 2){
+    const response = await fetch( backendAdress + '/lines_id_name')
+    linesIdName = await response.json()
   }
 }
 
@@ -215,8 +245,8 @@ async function setStationPoints(){
    * Fonction qui ajoute des points à l'emplacement des stations
    */
   if(version == 1){
-    for(let lineNum in data.value){
-      let line = data.value[lineNum]
+    for(let lineNum in metroPoints.value){
+      let line = metroPoints.value[lineNum]
       for(let stationName in line){
         let stationData = line[stationName]
         let p = new Point([stationData.x, metroImageSize.y - stationData.y])
@@ -252,12 +282,14 @@ async function setStationPoints(){
   }
   else if(version == 2){
     var features_over = []
-    for(let stop_id in data.value){
-      let stop = data.value[stop_id]
+    for(let stop_id in metroPoints.value){
+      let stop = metroPoints.value[stop_id]
       if(stop.ref!=-1){
         let p = new Point(fromLonLat([stop.long, stop.lat]))
         let f = new Feature({geometry: p})
         f.set('stationName', stop.name);
+        f.setId(stop_id) 
+        f.setProperties(stop)
         if (stop.line == 15){
           stop.line = "3B"
         }
@@ -280,7 +312,7 @@ async function setStationPoints(){
         f.setStyle([pointStyle])
         features.push(f)
       } else if (stop.line==0){
-        let stop = data.value[stop_id]
+        let stop = metroPoints.value[stop_id]
         let p = new Point(fromLonLat([stop.long, stop.lat]))
         let f = new Feature({geometry: p})
         f.set('stationName', stop.name);
@@ -294,13 +326,13 @@ async function setStationPoints(){
         var pointStyle = new Style({
           zIndex: 10,
           image: new Circle({
-            radius: 2.8,
+            radius: 3.5,
             fill: new Fill({
               color: 'white',
             }),
             stroke: new Stroke({
               color: 'black',
-              width: 0.7,
+              width: 1,
             }),
           }),
         })
@@ -314,16 +346,200 @@ async function setStationPoints(){
   }
 }
 
+async function setAllLowlight(){
+  linesLayer.getSource().getFeatures().forEach(f => {
+    const st = resolveStyle(f, linesLayer)
+    const stroke = st.getStroke()
+    if (stroke) stroke.setWidth(LOW_LINE_WIDTH)
+    f.setStyle(st)
+  })
+  
+  stationLayer.getSource().getFeatures().forEach(f => {
+    const st = resolveStyle(f, stationLayer)
+    const img = st.getImage()
+    if (img) img.setRadius(LOW_STOP_RADIUS)
+    f.setStyle(st)
+  })
+} 
+
 async function resetHighlight(){
+  linesLayer.getSource().getFeatures().forEach(f => {
+    const st = resolveStyle(f, linesLayer)
+    const stroke = st.getStroke()
+    if (stroke) stroke.setWidth(DEFAULT_LINE_WIDTH)
+    f.setStyle(st)
+  })
 
+  stationLayer.getSource().getFeatures().forEach(f => {
+    const st = resolveStyle(f, stationLayer)
+    const img = st.getImage()
+    if (img) img.setRadius(DEFAULT_STOP_RADIUS)
+    f.setStyle(st)
+  })
 }
 
-async function highlightLine(){
+async function highlightSegment(segmentStopId1, segmentStopId2){
+  const ftr1 = getStopFeatureById(segmentStopId1)
+  const ftr2 = getStopFeatureById(segmentStopId2)
+  // On vérifie si les points existe sur la map
+  if (ftr1 && ftr2) {
+    // Highlight des stops
+    highlightStop(segmentStopId1)
+    highlightStop(segmentStopId2)
+    // récupération des ref id
+    let stop1Ref = ftr1.get('ref')
+    let stop2Ref = ftr2.get('ref')
+    if(stop1Ref === ''){
+      stop1Ref = segmentStopId1
+    }
+    if(stop2Ref === ''){
+      stop2Ref = segmentStopId2
+    }
+    let bOk = false
+    // Parcours des lignes pour trouver celle correspondante
+    const lineName = String(ftr1.get('line'))
+    linesLayer.getSource().getFeatures().forEach(f => {
+      // Récupération de l'id de ligne et récupération de son nom
+      const res_com_id = String(f.get('idrefligc') || '')
+      const res_com = linesIdName[res_com_id]
 
+      // Récupération des id de ref des stops de la ligne
+      if (res_com == lineName) {
+        let loopSegmentStartId = f.get("start_id") //getStopFeatureById(f.get("start_id")).get("ref")
+        let loopSegmentEndId = f.get("end_id") //getStopFeatureById(f.get("end_id")).get("ref")
+        /*console.log()
+        console.log()
+        console.log()*/
+        if (loopSegmentStartId === ''){
+          loopSegmentStartId = f.get("start_id")
+        }
+        if (loopSegmentEndId === ''){
+          loopSegmentEndId = f.get("end_id")
+        }
+
+        if ((loopSegmentStartId === stop1Ref && loopSegmentEndId === stop2Ref) || (loopSegmentStartId === stop2Ref && loopSegmentEndId === stop1Ref) /*|| f.get("shape_leng") === 47.4053594243 || f.get("shape_id") === 'C01376_IDFM:22160_IDFM:22158'*/){
+          // console.log(f.get("shape_id") + "\n" + "resea: " + stop1Ref + ", " + stop2Ref + "\n" + "actua: " + loopSegmentStartId + ", " + loopSegmentEndId + "\n" + (loopSegmentStartId === stop1Ref && loopSegmentEndId === stop2Ref) || (loopSegmentStartId === stop2Ref && loopSegmentEndId === stop1Ref))
+          const style = f.getStyle()
+          style.getStroke().setWidth(DEFAULT_LINE_WIDTH + HIGHLIGHT_LINE_DELTA)
+          f.setStyle(style)
+          bOk = true
+        }
+      }
+
+    })
+    if(!bOk){
+      const lineGeom = new LineString([ fromLonLat([ftr1.get("long"), ftr1.get("lat")]),  fromLonLat([ftr2.get("long"), ftr2.get("lat")])])
+
+      const lineFeature = new Feature({
+        geometry: lineGeom,
+        name: 'to remove'
+      })
+      console.log(ftr1.get("lat"))
+
+      lineFeature.setStyle(new Style({
+        stroke: new Stroke({
+          color: '#' + (linesInfo.value.Lines[String(ftr1.get("line")).trim()]?.color ?? 'CCCCCC'),
+          width: DEFAULT_LINE_WIDTH + HIGHLIGHT_LINE_DELTA
+        })
+      }))
+      
+      linesLayer.getSource().addFeature(lineFeature)
+    }
+  }
 }
 
-async function highlightRoute(){
+async function highlightLine(lineName){
+  await setAllLowlight()
+  const shortName = lineName.replace(/^Metro\s*/i, '').trim()
 
+  linesLayer.getSource().getFeatures().forEach(f => {
+    const rsn = String(f.get('route_short_name') || '')
+    if (rsn === shortName) {
+      const style = f.getStyle()
+      style.getStroke().setWidth(DEFAULT_LINE_WIDTH + HIGHLIGHT_LINE_DELTA)
+      f.setStyle(style)
+    }
+  })
+
+  stationLayer.getSource().getFeatures().forEach(f => {
+    if (String(f.get('line')) === shortName) {
+      const style = f.getStyle()
+      style.getImage().setRadius(DEFAULT_STOP_RADIUS + HIGHLIGHT_STOP_DELTA)
+      f.setStyle(style)
+    }
+  })
+}
+
+async function highlightCourse(course){
+  /*for(let metro of route.stations){
+    var tmp_stop = {}
+    for(let stop of metro){
+      if(tmp_stop != {}){
+        highlightCourse(stop)
+      }
+      highlightStop(stop)
+      tmp_stop = stop
+    }
+  }*/
+  await setAllLowlight()
+  /*course.stations.forEach(segment => {
+    const lineName = Object.keys(segment)[0]  
+    const stops = segment[lineName].map(s => s.id)
+    linesLayer.getSource().getFeatures().forEach(f => {
+      const rsn = String(f.get('route_short_name') || '')
+      if (rsn === lineName.replace(/^Metro\s*i, '').trim()) {
+        const style = f.getStyle()
+        style.getStroke().setWidth(DEFAULT_LINE_WIDTH + HIGHLIGHT_LINE_DELTA)
+        f.setStyle(style)
+      }
+    })
+    stops.forEach(id => highlightStop(id))
+  })*/
+  for (const segment of course.stations) {
+    const lineName = Object.keys(segment)[0]
+    const stopIds  = segment[lineName].map(s => s.id)
+
+    for (let i = 1; i < stopIds.length; i++) {
+      await highlightSegment(stopIds[i - 1], stopIds[i])
+    }
+  }
+}
+
+async function highlightStop(stopId){
+  const f = getStopFeatureById(stopId)
+  if (!f) return
+  const st = resolveStyle(f, stationLayer)
+  const img = st.getImage()
+  if (img) img.setRadius(DEFAULT_STOP_RADIUS + HIGHLIGHT_STOP_DELTA)
+  f.setStyle(st)
+  /*for(let feature of features){
+    if(feature.id != stop.id){
+      let style = feature.getStyle()
+      let stroke = style.getStroke
+      stroke.set
+    }
+  }*/
+}
+
+function getStopFeatureById(id) {
+  return stationLayer.getSource().getFeatureById(String(id))
+}
+
+function resolveStyle(feature, layer) {
+  let style = feature.getStyle()
+
+  if (!style) {
+    const layerStyle = layer.getStyle()
+    style = typeof layerStyle === 'function'
+      ? layerStyle(feature)
+      : layerStyle
+  }
+
+  if (Array.isArray(style)) {
+    style = style[0]
+  }
+
+  return style.clone ? style.clone() : style
 }
 
 </script>

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Request, HTTPException
 
 from pydantic import BaseModel
-from app.services.metro_service import get_trip, get_all_station_ids, get_stations_position, get_stops_position, get_lines_info, get_geojson
+from app.services.metro_service import get_trip, get_all_station_ids, get_stations_position, get_stops_position, get_lines_info, get_geojson, get_lines_id_relation
 
 router = APIRouter()
 
@@ -169,3 +169,15 @@ async def metro_line_geojson_endpoint():
     <file (dict)>
     """
     return get_geojson("traces-du-reseau-ferre-idf.geojson")
+
+@router.get("/lines_id_name")
+async def lines_id_relation():
+    """
+    Fonction qui retourne la realtion entre le nom des lignes et leur id
+    ------------------
+    return format:
+    {
+        <line_id (str)>: <line_name (str)>
+    }
+    """
+    return get_lines_id_relation()

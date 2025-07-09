@@ -247,7 +247,7 @@
         <!-- Colonne de droite pour la carte -->
         <div class="map-column">
           <div class="map-card">
-            <MetroMap />
+            <MetroMap :trip="trip" />
           </div>
         </div>
       </div>
