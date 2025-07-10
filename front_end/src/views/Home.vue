@@ -757,6 +757,14 @@ function calculateJourneyTimes(currentTrip, departureTime) {
     }
   }
   
+  // Add any remaining transfer time for the last segment (if any)
+  if (segments.length > 0) {
+    const lastSegment = segments[segments.length - 1];
+    if (lastSegment.transfer_time_seconds > 0) {
+      currentTime = addSecondsToTime(currentTime, lastSegment.transfer_time_seconds);
+    }
+  }
+
   // Add arrival time
   journeyTimes.push({
     type: 'arrival',
