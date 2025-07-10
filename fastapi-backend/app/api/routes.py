@@ -4,9 +4,12 @@ from app.services.metro_service import get_trip, get_all_station_ids, analyze_ne
 from app.core.station_coordinates import (
     get_all_station_coordinates, 
     get_station_coordinates, 
+    get_station_coordinates_with_mapping,
+    get_station_coordinates_by_line_type,
+    get_metro_station_coordinates,
+    get_rer_station_coordinates,
     get_all_lines, 
     get_line_info,
-
 )
 
 router = APIRouter()
@@ -43,9 +46,9 @@ async def analyze_network_endpoint(request: Request):
 
 @router.get("/station_coordinates")
 async def get_station_coordinates_endpoint():
-    """Get all station coordinates for the map"""
+    """Get all station coordinates for the map with normalized mapping"""
     try:
-        coordinates = get_all_station_coordinates()
+        coordinates = get_station_coordinates_with_mapping()
         lines = get_all_lines()
         
         return {
@@ -70,6 +73,46 @@ async def get_single_station_coordinates(station_name: str):
         }
     except HTTPException:
         raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/station_coordinates_by_line/{station_name}/{line_key}")
+async def get_station_coordinates_by_line(station_name: str, line_key: str):
+    """Get coordinates for a specific station based on line type"""
+    try:
+        coords = get_station_coordinates_by_line_type(station_name, line_key)
+        if coords is None:
+            raise HTTPException(status_code=404, detail=f"Station '{station_name}' not found for line '{line_key}'")
+        
+        return {
+            "station": station_name,
+            "line": line_key,
+            "coordinates": coords
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/metro_stations")
+async def get_metro_stations():
+    """Get all metro station coordinates"""
+    try:
+        return {
+            "stations": get_metro_station_coordinates(),
+            "type": "metro"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/rer_stations") 
+async def get_rer_stations():
+    """Get all RER station coordinates"""
+    try:
+        return {
+            "stations": get_rer_station_coordinates(),
+            "type": "rer"
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

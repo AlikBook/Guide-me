@@ -140,7 +140,9 @@ export default {
       showLegend: true,
       showHelp: false,
       showRouteInfo: false,
-      stationCoordinates: {}, // Only coordinates from STATION_COORDINATES variable
+      stationCoordinates: {}, // All coordinates from backend
+      metroStationCoordinates: {}, // Metro-only coordinates
+      rerStationCoordinates: {}, // RER-only coordinates
       lineDefinitions: {},
       
       // Paris metro/RER line colors
@@ -255,9 +257,7 @@ export default {
 
     async loadNetworkData() {
       try {
-
-        
-        // Load ONLY from station_coordinates endpoint (which uses STATION_COORDINATES variable)
+        // Load coordinates from the updated endpoint that handles metro/RER separation
         const response = await fetch('http://127.0.0.1:8000/station_coordinates');
         
         if (!response.ok) {
@@ -266,15 +266,31 @@ export default {
         
         const data = await response.json();
 
-        
-        // Use ONLY the coordinates from STATION_COORDINATES variable
+        // Use the coordinates from the updated endpoint
         this.stationCoordinates = data.stations;
         this.lineDefinitions = data.lines;
         
-        // Update station markers (no connection lines, only stations and trajectory)
+        // Also load separate metro and RER coordinates for line-specific lookups
+        const [metroResponse, rerResponse] = await Promise.all([
+          fetch('http://127.0.0.1:8000/metro_stations'),
+          fetch('http://127.0.0.1:8000/rer_stations')
+        ]);
+        
+        if (metroResponse.ok) {
+          const metroData = await metroResponse.json();
+          this.metroStationCoordinates = metroData.stations;
+        }
+        
+        if (rerResponse.ok) {
+          const rerData = await rerResponse.json();
+          this.rerStationCoordinates = rerData.stations;
+        }
+        
+        // Update station markers
         this.updateStationMarkers();
         
       } catch (error) {
+        console.warn('Failed to load network data from API:', error);
         // Fallback to generated positions if API fails
         this.generateFallbackPositions();
       }
@@ -307,10 +323,12 @@ export default {
       const trajectoryStations = this.getTrajectoryStationNames();
       const showOnlyTrajectoryStations = trajectoryStations.length > 0;
 
-      // Add markers ONLY for stations that exist in STATION_COORDINATES
+      // Add markers for stations that have coordinates
       this.stations.forEach(station => {
         const stationName = station.station_name || station.station;
-        const coords = this.stationCoordinates[stationName];
+        
+        // Get coordinates using the generic method for station display
+        const coords = this.getStationCoordinatesGeneric(stationName);
         
         if (coords) {
           // If we have a trajectory, only show stations that are part of it
@@ -326,8 +344,6 @@ export default {
           if (this.selectedTrip && this.selectedTrip.stations) {
             isTransfer = this.isTransferStation(stationName);
           }
-          
-
           
           const icon = isTransfer ? this.transferIcon : this.stationIcon;
           
@@ -495,15 +511,75 @@ export default {
       return previousLine && nextLine && previousLine !== nextLine;
     },
 
-    
-
-    
-
-    
-
-    
+    getStationCoordinatesForLine(stationName, lineKey) {
+      // Helper method to get correct coordinates based on line type
+      if (!stationName) return null;
       
-   
+      // Determine line type
+      const isMetroLine = lineKey && (
+        lineKey.toLowerCase().includes('metro') || 
+        /^\d+$/.test(lineKey.replace(/[^\w]/g, '')) || // Pure numbers like "1", "14"
+        ['1', '2', '3', '3bis', '4', '5', '6', '7', '7bis', '8', '9', '10', '11', '12', '13', '14'].includes(lineKey.replace(/[^\w]/g, ''))
+      );
+      
+      const isRERLine = lineKey && (
+        lineKey.toLowerCase().includes('rer') ||
+        ['A', 'B', 'C', 'D', 'E'].includes(lineKey.replace(/[^\w]/g, '').toUpperCase())
+      );
+      
+      // Try to get coordinates based on line type first
+      if (isMetroLine && this.metroStationCoordinates[stationName]) {
+        return this.metroStationCoordinates[stationName];
+      }
+      
+      if (isRERLine && this.rerStationCoordinates[stationName]) {
+        return this.rerStationCoordinates[stationName];
+      }
+      
+      // Fallback to generic station coordinates (handles duplicates with suffix)
+      if (this.stationCoordinates[stationName]) {
+        if (this.stationCoordinates[stationName].coordinates) {
+          return this.stationCoordinates[stationName].coordinates;
+        }
+        return this.stationCoordinates[stationName];
+      }
+      
+      // Try RER version if station name has suffix
+      const rerStationName = `${stationName} (RER)`;
+      if (this.stationCoordinates[rerStationName]) {
+        if (this.stationCoordinates[rerStationName].coordinates) {
+          return this.stationCoordinates[rerStationName].coordinates;
+        }
+        return this.stationCoordinates[rerStationName];
+      }
+      
+      return null;
+    },
+
+    getStationCoordinatesGeneric(stationName) {
+      // Generic method for when we don't have line context
+      if (!stationName) return null;
+      
+      // Try the general coordinates first
+      if (this.stationCoordinates[stationName]) {
+        if (this.stationCoordinates[stationName].coordinates) {
+          return this.stationCoordinates[stationName].coordinates;
+        }
+        return this.stationCoordinates[stationName];
+      }
+      
+      // Try metro coordinates
+      if (this.metroStationCoordinates[stationName]) {
+        return this.metroStationCoordinates[stationName];
+      }
+      
+      // Try RER coordinates
+      if (this.rerStationCoordinates[stationName]) {
+        return this.rerStationCoordinates[stationName];
+      }
+      
+      return null;
+    },
 
     generateFallbackPositions() {
 
@@ -561,7 +637,8 @@ export default {
             
             stations.forEach(station => {
               const stationName = station.station;
-              const coords = this.stationCoordinates[stationName];
+              // Use line-specific coordinate lookup for accurate positioning
+              const coords = this.getStationCoordinatesForLine(stationName, lineKey);
               if (coords) {
                 allPathStations.push({
                   name: stationName,
