@@ -788,6 +788,154 @@ def calculate_path_and_time(start_id, end_id, edges, metro_info, all_station_ids
         }
         list_of_trips.append(var_return)
 
+    # Metro-only Dijkstra: Always try to add metro-only path as an additional option
+    try:
+        # Create metro-only graph
+        metro_edges, metro_station_ids, metro_id_to_index = get_metro_only_edges_and_graph(
+            metro_info, all_station_ids, complete_data, id_to_index
+        )
+        
+        print(f"DEBUG: Created metro-only graph with {len(metro_station_ids)} stations and {len(metro_edges)} edges")
+        
+        # Check if both start and end stations are metro stations
+        start_station_id = index_to_id[start_id]
+        end_station_id = index_to_id[end_id]
+        
+        print(f"DEBUG: Start station ID: {start_station_id}")
+        print(f"DEBUG: End station ID: {end_station_id}")
+        print(f"DEBUG: Start in metro_id_to_index: {start_station_id in metro_id_to_index}")
+        print(f"DEBUG: End in metro_id_to_index: {end_station_id in metro_id_to_index}")
+        
+        if start_station_id in metro_id_to_index and end_station_id in metro_id_to_index:
+            # Convert to metro-only indices
+            metro_start_id = metro_id_to_index[start_station_id]
+            metro_end_id = metro_id_to_index[end_station_id]
+            
+            print(f"DEBUG: Metro start index: {metro_start_id}")
+            print(f"DEBUG: Metro end index: {metro_end_id}")
+            
+            dijkstra_cost, dijkstra_path = dijkstra_shortest_path(
+                metro_edges, metro_start_id, metro_end_id, metro_station_ids
+            )
+            
+            if dijkstra_cost is not None and dijkstra_path:
+                print(f"Metro-only Dijkstra found path with cost {dijkstra_cost} seconds and {len(dijkstra_path)} stations")
+                
+                # Convert dijkstra path to station IDs for comparison
+                dijkstra_station_ids = [metro_station_ids[idx] for idx in dijkstra_path]
+                
+                # Check if this metro-only path is different from existing paths
+                is_unique = True
+                for existing_trip in list_of_trips:
+                    existing_station_ids = []
+                    for segment in existing_trip["stations"]:
+                        for line_key, stations in segment.items():
+                            if line_key != "transfer_time":
+                                for station in stations:
+                                    station_actual_id = index_to_id[int(station["id"])]
+                                    existing_station_ids.append(station_actual_id)
+                    
+                    # Compare the sequences of station IDs
+                    if existing_station_ids == dijkstra_station_ids:
+                        is_unique = False
+                        print("DEBUG: Metro-only path is identical to an existing path, skipping")
+                        break
+                
+                if is_unique:
+                    print("DEBUG: Metro-only path is unique, adding it as an option")
+                    
+                    # Create stations list for Dijkstra path (metro-only)
+                    stations_segments = []
+                    current_segment = None
+                    prev_line = None
+
+                    for path_idx, metro_idx in enumerate(dijkstra_path):
+                        # Convert metro index back to station ID
+                        stop_id = metro_station_ids[metro_idx]
+                        
+                        # This should always be a metro station since we're using metro-only graph
+                        if stop_id in metro_id_to_info:
+                            name, line, wheelchair = metro_id_to_info[stop_id]
+                            
+                            # Map bis lines for metro
+                            display_line = line
+                            if line == 15:
+                                display_line = '3bis'
+                            elif line == 16:
+                                display_line = '7bis'
+                            
+                            key = f"Metro {display_line}"
+                            
+                            # Create station info
+                            station_info = {
+                                "id": str(id_to_index.get(stop_id, metro_idx)),
+                                "station": name,
+                                "wheelchair_accessible": wheelchair
+                            }
+
+                            # Check if we need to start a new segment
+                            if line != prev_line or current_segment is None:
+                                # Start a new segment
+                                current_segment = {
+                                    "line_key": key,
+                                    "stations": [station_info]
+                                }
+                                stations_segments.append(current_segment)
+                            else:
+                                # Continue current segment
+                                current_segment["stations"].append(station_info)
+                            
+                            prev_line = line
+
+                    # Convert segments to the expected format
+                    stations_list = []
+                    for i, segment in enumerate(stations_segments):
+                        segment_dict = {segment["line_key"]: segment["stations"]}
+                        
+                        # Add transfer time if this is not the first segment
+                        if i > 0:
+                            # Get the last station of previous segment and first station of current segment
+                            prev_segment = stations_segments[i-1]
+                            prev_last_station_id = prev_segment["stations"][-1]["id"]
+                            current_first_station_id = segment["stations"][0]["id"]
+                            
+                            # Convert index-based IDs back to actual station IDs
+                            prev_station_actual_id = index_to_id[int(prev_last_station_id)]
+                            current_station_actual_id = index_to_id[int(current_first_station_id)]
+                            
+                            # Look up transfer time (metro-to-metro transfers)
+                            transfer_time = transfer_times.get((prev_station_actual_id, current_station_actual_id))
+                            if transfer_time:
+                                segment_dict["transfer_time"] = f"{transfer_time // 60} min {transfer_time % 60} sec"
+                            else:
+                                # Default metro transfer time (2 minutes)
+                                segment_dict["transfer_time"] = "2 min 0 sec"
+                        
+                        stations_list.append(segment_dict)
+
+                    dijkstra_result = {
+                        "total_time": f"{int(dijkstra_cost // 60)} minutes and {int(dijkstra_cost % 60)} seconds",
+                        "stations": stations_list,
+                        "note": "Metro-only shortest path (RER connections excluded)"
+                    }
+                    list_of_trips.append(dijkstra_result)
+                
+            else:
+                print("Metro-only Dijkstra could not find a path between the stations")
+                print(f"DEBUG: dijkstra_cost = {dijkstra_cost}, dijkstra_path = {dijkstra_path}")
+        else:
+            print("Start or end station is not a metro station - cannot add metro-only option")
+            print(f"DEBUG: Available metro stations: {len(metro_id_to_index)} stations")
+            if start_station_id not in metro_id_to_index:
+                print(f"DEBUG: Start station {start_station_id} not found in metro stations")
+            if end_station_id not in metro_id_to_index:
+                print(f"DEBUG: End station {end_station_id} not found in metro stations")
+            
+    except Exception as e:
+        print(f"Error adding metro-only option: {e}")
+        import traceback
+        traceback.print_exc()
+
     # Dijkstra fallback: if no valid trips found after filtering, use metro-only shortest path
     if not list_of_trips:
         print("All paths were filtered out. Using metro-only Dijkstra fallback...")
