@@ -1,6 +1,12 @@
 import os
+import sys
 import pickle
 from datetime import datetime, timedelta
+import heapq
+import sys
+import os
+import pickle
+import platform
 from app.functions.reads_and_pickles import load_ratp_data, read_and_save_stops, read_transfers, get_detailed_trips_for_RER, read_RER_lines
 import platform
 
@@ -26,7 +32,6 @@ def update_yen_wrapper_status():
     global HAS_YEN_WRAPPER, _INITIAL_YEN_AVAILABLE, get_k_shortest_paths
     try:
         # Clear cached imports
-        import sys
         if 'app.functions.yen_compiler.yen_wrapper' in sys.modules:
             del sys.modules['app.functions.yen_compiler.yen_wrapper']
         
@@ -60,6 +65,150 @@ except ImportError as e:
 
 import heapq
 from datetime import datetime, timedelta
+
+def get_metro_only_edges_and_graph(metro_info, all_station_ids, complete_data, id_to_index):
+    """
+    Create a graph containing only metro stations and connections (no RER)
+    Returns: (metro_edges, metro_station_ids, metro_id_to_index)
+    """
+    # Get only metro station IDs
+    metro_station_ids = set()
+    for station_id, name, line, wheelchair in metro_info:
+        metro_station_ids.add(station_id)
+    
+    # Filter station IDs to only include metro stations that are in all_station_ids
+    filtered_metro_ids = [sid for sid in all_station_ids if sid in metro_station_ids]
+    
+    # Create new index mapping for metro-only stations
+    metro_id_to_index = {station_id: idx for idx, station_id in enumerate(filtered_metro_ids)}
+    
+    # Create metro-only edges
+    metro_edges = []
+    
+    # Asymmetric pairs for metro (same as in original function)
+    metro_asymmetric_pairs = [
+        ("462958", "21971"), 
+        ("21982", "462958"), 
+        ("21988", "463239"), 
+        ("21974", "21988"), 
+        ("24686", "24682"), 
+        ("24687", "24686")
+    ]
+    
+    edges_not_symmetric = set()
+    asymmetric_count = 0
+    for id1, id2 in metro_asymmetric_pairs:
+        if id1 in metro_id_to_index and id2 in metro_id_to_index:
+            edges_not_symmetric.add((metro_id_to_index[id1], metro_id_to_index[id2]))
+            asymmetric_count += 1
+    
+    print(f"DEBUG: Found {asymmetric_count} asymmetric pairs in metro-only graph")
+    
+    # Process connections, only including metro-to-metro connections
+    total_connections = 0
+    bidirectional_connections = 0
+    asymmetric_connections = 0
+    
+    for id1, id2, time in complete_data:
+        # Only include if both stations are metro stations
+        if id1 in metro_station_ids and id2 in metro_station_ids:
+            if id1 in metro_id_to_index and id2 in metro_id_to_index:
+                i = metro_id_to_index[id1]
+                j = metro_id_to_index[id2]
+                time_int = int(time)
+                
+                # Add the connection
+                metro_edges.append((i, j, time_int))
+                total_connections += 1
+                
+                # Add reverse connection if not in asymmetric exceptions
+                # The logic is: add reverse UNLESS it's specifically marked as asymmetric
+                if (i, j) not in edges_not_symmetric:
+                    metro_edges.append((j, i, time_int))
+                    bidirectional_connections += 1
+                else:
+                    asymmetric_connections += 1
+    
+    print(f"DEBUG: Processed {total_connections} metro connections")
+    print(f"DEBUG: {bidirectional_connections} bidirectional, {asymmetric_connections} asymmetric")
+    print(f"DEBUG: Total metro edges created: {len(metro_edges)}")
+    
+    return metro_edges, filtered_metro_ids, metro_id_to_index
+
+def dijkstra_shortest_path(edges, start_id, end_id, all_station_ids):
+    """
+    Dijkstra algorithm implementation as fallback when Yen's algorithm filters out all paths
+    Returns: (cost, path) tuple or (None, None) if no path found
+    """
+    print(f"DEBUG Dijkstra: Starting with {len(edges)} edges, start={start_id}, end={end_id}")
+    
+    # Create adjacency list from edges
+    graph = {}
+    for source, target, weight in edges:
+        if source not in graph:
+            graph[source] = []
+        graph[source].append((target, weight))
+    
+    print(f"DEBUG Dijkstra: Created graph with {len(graph)} nodes")
+    print(f"DEBUG Dijkstra: Start node {start_id} has {len(graph.get(start_id, []))} neighbors")
+    print(f"DEBUG Dijkstra: End node {end_id} in graph: {end_id in graph}")
+    
+    # Check if both start and end nodes exist in the graph
+    if start_id not in graph:
+        print(f"DEBUG Dijkstra: Start node {start_id} not found in graph!")
+        # Check if any node connects TO the start node
+        connections_to_start = []
+        for node, neighbors in graph.items():
+            for neighbor, weight in neighbors:
+                if neighbor == start_id:
+                    connections_to_start.append(node)
+        print(f"DEBUG Dijkstra: Nodes connecting TO start: {connections_to_start}")
+        return None, None
+    
+    # Initialize distances and previous nodes
+    distances = {node: float('infinity') for node in range(len(all_station_ids))}
+    previous = {node: None for node in range(len(all_station_ids))}
+    distances[start_id] = 0
+    
+    # Priority queue: (distance, node)
+    pq = [(0, start_id)]
+    visited = set()
+    
+    while pq:
+        current_distance, current_node = heapq.heappop(pq)
+        
+        if current_node in visited:
+            continue
+            
+        visited.add(current_node)
+        
+        # Found the target
+        if current_node == end_id:
+            print(f"DEBUG Dijkstra: Found target! Distance: {current_distance}")
+            # Reconstruct path
+            path = []
+            node = end_id
+            while node is not None:
+                path.append(node)
+                node = previous[node]
+            path.reverse()
+            print(f"DEBUG Dijkstra: Path length: {len(path)} stations")
+            return current_distance, path
+        
+        # Check neighbors
+        if current_node in graph:
+            for neighbor, weight in graph[current_node]:
+                if neighbor not in visited:
+                    new_distance = current_distance + weight
+                    if new_distance < distances[neighbor]:
+                        distances[neighbor] = new_distance
+                        previous[neighbor] = current_node
+                        heapq.heappush(pq, (new_distance, neighbor))
+    
+    print(f"DEBUG Dijkstra: No path found! Visited {len(visited)} nodes")
+    print(f"DEBUG Dijkstra: End node {end_id} reached: {end_id in visited}")
+    return None, None
+
 # Ensure the pickle directory exists
 PICKLE_DIR = os.path.join(os.path.dirname(__file__), "container_pkl_files")
 os.makedirs(PICKLE_DIR, exist_ok=True)
@@ -638,6 +787,133 @@ def calculate_path_and_time(start_id, end_id, edges, metro_info, all_station_ids
             "stations": stations_list
         }
         list_of_trips.append(var_return)
+
+    # Dijkstra fallback: if no valid trips found after filtering, use metro-only shortest path
+    if not list_of_trips:
+        print("All paths were filtered out. Using metro-only Dijkstra fallback...")
+        try:
+            # Create metro-only graph
+            metro_edges, metro_station_ids, metro_id_to_index = get_metro_only_edges_and_graph(
+                metro_info, all_station_ids, complete_data, id_to_index
+            )
+            
+            print(f"DEBUG: Created metro-only graph with {len(metro_station_ids)} stations and {len(metro_edges)} edges")
+            
+            # Check if both start and end stations are metro stations
+            start_station_id = index_to_id[start_id]
+            end_station_id = index_to_id[end_id]
+            
+            print(f"DEBUG: Start station ID: {start_station_id}")
+            print(f"DEBUG: End station ID: {end_station_id}")
+            print(f"DEBUG: Start in metro_id_to_index: {start_station_id in metro_id_to_index}")
+            print(f"DEBUG: End in metro_id_to_index: {end_station_id in metro_id_to_index}")
+            
+            if start_station_id in metro_id_to_index and end_station_id in metro_id_to_index:
+                # Convert to metro-only indices
+                metro_start_id = metro_id_to_index[start_station_id]
+                metro_end_id = metro_id_to_index[end_station_id]
+                
+                print(f"DEBUG: Metro start index: {metro_start_id}")
+                print(f"DEBUG: Metro end index: {metro_end_id}")
+                
+                dijkstra_cost, dijkstra_path = dijkstra_shortest_path(
+                    metro_edges, metro_start_id, metro_end_id, metro_station_ids
+                )
+                
+                if dijkstra_cost is not None and dijkstra_path:
+                    print(f"Metro-only Dijkstra found path with cost {dijkstra_cost} seconds and {len(dijkstra_path)} stations")
+                    
+                    # Create stations list for Dijkstra path (metro-only)
+                    stations_segments = []
+                    current_segment = None
+                    prev_line = None
+
+                    for path_idx, metro_idx in enumerate(dijkstra_path):
+                        # Convert metro index back to station ID
+                        stop_id = metro_station_ids[metro_idx]
+                        
+                        # This should always be a metro station since we're using metro-only graph
+                        if stop_id in metro_id_to_info:
+                            name, line, wheelchair = metro_id_to_info[stop_id]
+                            
+                            # Map bis lines for metro
+                            display_line = line
+                            if line == 15:
+                                display_line = '3bis'
+                            elif line == 16:
+                                display_line = '7bis'
+                            
+                            key = f"Metro {display_line}"
+                            
+                            # Create station info
+                            station_info = {
+                                "id": str(id_to_index.get(stop_id, metro_idx)),
+                                "station": name,
+                                "wheelchair_accessible": wheelchair
+                            }
+
+                            # Check if we need to start a new segment
+                            if line != prev_line or current_segment is None:
+                                # Start a new segment
+                                current_segment = {
+                                    "line_key": key,
+                                    "stations": [station_info]
+                                }
+                                stations_segments.append(current_segment)
+                            else:
+                                # Continue current segment
+                                current_segment["stations"].append(station_info)
+                            
+                            prev_line = line
+
+                    # Convert segments to the expected format
+                    stations_list = []
+                    for i, segment in enumerate(stations_segments):
+                        segment_dict = {segment["line_key"]: segment["stations"]}
+                        
+                        # Add transfer time if this is not the first segment
+                        if i > 0:
+                            # Get the last station of previous segment and first station of current segment
+                            prev_segment = stations_segments[i-1]
+                            prev_last_station_id = prev_segment["stations"][-1]["id"]
+                            current_first_station_id = segment["stations"][0]["id"]
+                            
+                            # Convert index-based IDs back to actual station IDs
+                            prev_station_actual_id = index_to_id[int(prev_last_station_id)]
+                            current_station_actual_id = index_to_id[int(current_first_station_id)]
+                            
+                            # Look up transfer time (metro-to-metro transfers)
+                            transfer_time = transfer_times.get((prev_station_actual_id, current_station_actual_id))
+                            if transfer_time:
+                                segment_dict["transfer_time"] = f"{transfer_time // 60} min {transfer_time % 60} sec"
+                            else:
+                                # Default metro transfer time (2 minutes)
+                                segment_dict["transfer_time"] = "2 min 0 sec"
+                        
+                        stations_list.append(segment_dict)
+
+                    dijkstra_result = {
+                        "total_time": f"{int(dijkstra_cost // 60)} minutes and {int(dijkstra_cost % 60)} seconds",
+                        "stations": stations_list,
+                        "note": "Metro-only shortest path (RER connections excluded)"
+                    }
+                    list_of_trips.append(dijkstra_result)
+                    
+                else:
+                    print("Metro-only Dijkstra could not find a path between the stations")
+                    print(f"DEBUG: dijkstra_cost = {dijkstra_cost}, dijkstra_path = {dijkstra_path}")
+            else:
+                print("Start or end station is not a metro station - cannot use metro-only fallback")
+                print(f"DEBUG: Available metro stations: {len(metro_id_to_index)} stations")
+                if start_station_id not in metro_id_to_index:
+                    print(f"DEBUG: Start station {start_station_id} not found in metro stations")
+                if end_station_id not in metro_id_to_index:
+                    print(f"DEBUG: End station {end_station_id} not found in metro stations")
+                
+        except Exception as e:
+            print(f"Error in metro-only Dijkstra fallback: {e}")
+            import traceback
+            traceback.print_exc()
 
     return list_of_trips
 
