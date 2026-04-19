@@ -1,20 +1,11 @@
 """Data loading functions for metro and RER data from SQLite database."""
 
-import os
-import pickle
 from app.core.database import db_cursor
 from app.services.transport_service import (
     get_all_stops,
     get_rer_lines,
     get_detailed_rer_trips,
 )
-
-
-def get_pickle_path(filename):
-    """Helper to get pickle file path (for legacy support during transition)."""
-    pickle_dir = os.path.join(os.path.dirname(__file__), "container_pkl_files")
-    os.makedirs(pickle_dir, exist_ok=True)
-    return os.path.join(pickle_dir, filename)
 
 
 def _normalize_metro_line(route_short_name):
@@ -327,22 +318,12 @@ def get_rer_stop_data(stops_data=None):
     return rer_stop_data, rer_stop_data_with_line
 
 
-def get_rer_connections(rer_stop_data):
-    """Get RER connections with caching."""
-    pkl_file = get_pickle_path("rer_connections.pkl")
-    
-    if os.path.exists(pkl_file):
-        with open(pkl_file, "rb") as f:
-            return pickle.load(f)
-    
+def get_rer_connections(rer_stop_data=None):
+    """Get RER connections from SQL-backed trajectory data."""
     rer_traject_per_line = get_detailed_rer_trips()
     rer_filtered_trips = filter_similar_trips(rer_traject_per_line)
-    
+
     from app.functions.graph_builder import get_connections_per_rer
     rer_connections = get_connections_per_rer(rer_traject_per_line, rer_filtered_trips)
-    
-    # Cache the result
-    with open(pkl_file, "wb") as f:
-        pickle.dump(rer_connections, f)
-    
+
     return rer_connections
