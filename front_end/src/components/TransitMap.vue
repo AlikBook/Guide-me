@@ -198,6 +198,7 @@ export default {
   },
   beforeUnmount() {
     if (this.map) {
+      this.closeAllPopups();
       this.map.remove();
     }
   },
@@ -218,6 +219,9 @@ export default {
 
         // Add throttled zoom event listener to reduce lag
         let zoomTimeout;
+        this.map.on('zoomstart', () => {
+          this.closeAllPopups();
+        });
         this.map.on('zoomend', () => {
           clearTimeout(zoomTimeout);
           zoomTimeout = setTimeout(() => {
@@ -299,6 +303,7 @@ export default {
 
       // Clear existing markers efficiently
       if (this.stationMarkers.length > 0) {
+        this.closeAllPopups();
         this.stationMarkers.forEach(marker => this.map.removeLayer(marker));
         this.stationMarkers.length = 0; // Clear array efficiently
       }
@@ -319,7 +324,7 @@ export default {
           }
 
           // Determine if this is a transfer station
-          const lines = station.lines || [];
+          const lines = this.getStationLines(station);
           let isTransfer = lines.length > 1;
           
           // For trajectory-specific transfer detection, use the new method
@@ -683,6 +688,22 @@ export default {
       return this.lineColors[cleanLine] || '#666666';
     },
 
+    getStationLines(station) {
+      if (Array.isArray(station.lines)) {
+        return station.lines;
+      }
+
+      if (station.line) {
+        return [station.line];
+      }
+
+      if (station.ligne) {
+        return [station.ligne];
+      }
+
+      return [];
+    },
+
     lightenColor(color, percent) {
       // Convert hex to RGB, lighten, and convert back
       const num = parseInt(color.replace("#", ""), 16);
@@ -696,6 +717,8 @@ export default {
     },
 
     clearMap() {
+      this.closeAllPopups();
+
       // Remove all station markers
       this.stationMarkers.forEach(marker => this.map.removeLayer(marker));
       this.stationMarkers = [];
@@ -733,9 +756,27 @@ export default {
     },
 
     clearTrajectoryLines() {
+      this.closeAllPopups();
+
       // Remove trajectory lines from map
       this.trajectoryLines.forEach(line => this.map.removeLayer(line));
       this.trajectoryLines = [];
+    },
+
+    closeAllPopups() {
+      if (!this.stationMarkers.length) {
+        return;
+      }
+
+      this.stationMarkers.forEach(marker => {
+        if (marker && typeof marker.closePopup === 'function') {
+          marker.closePopup();
+        }
+      });
+
+      if (this.map && typeof this.map.closePopup === 'function') {
+        this.map.closePopup();
+      }
     },
 
     showAllStations() {

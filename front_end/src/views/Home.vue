@@ -224,7 +224,7 @@
                   </div>
                   <div class="arrival-time">
                     <span class="time-label">Arrivée:</span>
-                    <span class="time-value">{{ journeyTimes[journeyTimes.length - 1]?.time }}</span>
+                    <span class="time-value">{{ arrivalDisplayTime }}</span>
                   </div>
                 </div>
               </div>
@@ -296,6 +296,9 @@
                         <span class="line-start-time">{{ getLineStartTime(lineIndex) }}</span>
                         →
                         <span class="line-end-time">{{ getLineEndTime(lineIndex) }}</span>
+                        <span class="line-wait-time" v-if="getLineWaitTime(lineIndex)">
+                          • Attente {{ getLineWaitTime(lineIndex) }}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -539,9 +542,24 @@ const currentTrip = computed(() => {
   return null;
 });
 
-// Computed property for journey times
+const segmentDetails = computed(() => {
+  return currentTrip.value?.timing_details?.segment_details || [];
+});
+
+// Kept for template compatibility with existing v-if blocks.
 const journeyTimes = computed(() => {
-  return calculateJourneyTimes(currentTrip.value, departureTime);
+  return segmentDetails.value;
+});
+
+const arrivalDisplayTime = computed(() => {
+  const segments = segmentDetails.value;
+  if (segments.length) {
+    const endTime = segments[segments.length - 1]?.segment_end_time;
+    if (endTime) return formatClock(endTime);
+  }
+
+  const fallbackSeconds = parseTotalTimeToSeconds(currentTrip.value?.total_time || "0 minutes and 0 seconds");
+  return addSecondsToTime(departureTime.value, fallbackSeconds);
 });
 
 // Add function to check wheelchair accessibility
@@ -610,38 +628,26 @@ function getLastStation(lineObj) {
 }
 
 function getLineStartTime(lineIndex) {
-  if (!journeyTimes.value || !journeyTimes.value.length || !cleanedTrip.value) return '';
-  
-  // First line starts at departure time
-  if (lineIndex === 0) {
-    return departureTime.value;
+  const segment = segmentDetails.value[lineIndex];
+  if (segment?.segment_start_time) {
+    return formatClock(segment.segment_start_time);
   }
-  
-  // Find the corresponding line change time
-  const lineChangeEvents = journeyTimes.value.filter(event => event.type === 'line_change');
-  if (lineIndex - 1 < lineChangeEvents.length) {
-    return lineChangeEvents[lineIndex - 1].time;
-  }
-  
-  return '';
+  return lineIndex === 0 ? departureTime.value : '';
 }
 
 function getLineEndTime(lineIndex) {
-  if (!journeyTimes.value || !journeyTimes.value.length || !cleanedTrip.value) return '';
-  
-  // If this is the last line, return arrival time
-  if (lineIndex === cleanedTrip.value.length - 1) {
-    const arrivalEvent = journeyTimes.value.find(event => event.type === 'arrival');
-    return arrivalEvent ? arrivalEvent.time : '';
+  const segment = segmentDetails.value[lineIndex];
+  if (segment?.segment_end_time) {
+    return formatClock(segment.segment_end_time);
   }
-  
-  // Otherwise, return the time of the next line change
-  const lineChangeEvents = journeyTimes.value.filter(event => event.type === 'line_change');
-  if (lineIndex < lineChangeEvents.length) {
-    return lineChangeEvents[lineIndex].time;
-  }
-  
   return '';
+}
+
+function getLineWaitTime(lineIndex) {
+  const segment = segmentDetails.value[lineIndex];
+  const waitSeconds = Number(segment?.wait_time_seconds || 0);
+  if (waitSeconds <= 0) return null;
+  return formatDuration(waitSeconds);
 }
 
 function calculateChangesForTrip(tripOption) {
@@ -684,17 +690,11 @@ function calculateChangesForTrip(tripOption) {
 }
 
 function getTransferTime(lineIndex) {
-  // Use cleanedTrip instead of raw stations data
-  if (!cleanedTrip.value || lineIndex >= cleanedTrip.value.length) return null;
-  
-  // Get the line segment at the specified index from cleanedTrip
-  const lineSegment = cleanedTrip.value[lineIndex];
-  
-  // Check if this segment has transfer_time property
-  if (lineSegment && lineSegment.transfer_time) {
-    return lineSegment.transfer_time;
+  const segment = segmentDetails.value[lineIndex];
+  const transferSeconds = Number(segment?.transfer_time_seconds || 0);
+  if (transferSeconds > 0) {
+    return formatDuration(transferSeconds);
   }
-  
   return null;
 }
 
@@ -708,6 +708,36 @@ function addSecondsToTime(timeStr, seconds) {
   const newHours = date.getHours().toString().padStart(2, '0');
   const newMinutes = date.getMinutes().toString().padStart(2, '0');
   return `${newHours}:${newMinutes}`;
+}
+
+function parseTotalTimeToSeconds(totalTime) {
+  if (!totalTime) return 0;
+  const minutesMatch = totalTime.match(/(\d+)\s*minute/i);
+  const secondsMatch = totalTime.match(/(\d+)\s*second/i);
+  const minutes = minutesMatch ? Number(minutesMatch[1]) : 0;
+  const seconds = secondsMatch ? Number(secondsMatch[1]) : 0;
+  return (minutes * 60) + seconds;
+}
+
+function formatClock(timeString) {
+  if (!timeString) return '';
+  const parts = timeString.split(':');
+  if (parts.length < 2) return timeString;
+  return `${parts[0].padStart(2, '0')}:${parts[1].padStart(2, '0')}`;
+}
+
+function formatDuration(totalSeconds) {
+  const safeSeconds = Math.max(0, Number(totalSeconds) || 0);
+  const minutes = Math.floor(safeSeconds / 60);
+  const seconds = safeSeconds % 60;
+
+  if (minutes > 0 && seconds > 0) {
+    return `${minutes} min ${seconds}s`;
+  }
+  if (minutes > 0) {
+    return `${minutes} min`;
+  }
+  return `${seconds}s`;
 }
 
 function calculateJourneyTimes(currentTrip, departureTime) {

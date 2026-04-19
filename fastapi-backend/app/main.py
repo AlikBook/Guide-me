@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.core.data_loader import load_all_data  # ⬅️ lo veremos en el paso 2
+from app.core.data_loader import load_all_data  
 from app.api.routes import router as api_router
 from app.core.auto_build import ensure_yen_wrapper
 app = FastAPI()
@@ -31,7 +31,7 @@ def on_startup():
         print("High-performance mode enabled")
         # Update the status in functionsV3.py after successful build
         try:
-            from app.functions.functionsV3 import update_yen_wrapper_status
+            from app.functions.pathfinding import update_yen_wrapper_status
             update_yen_wrapper_status()
         except ImportError:
             pass  # Function might not be available yet

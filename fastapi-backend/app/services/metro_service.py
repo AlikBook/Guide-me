@@ -1,5 +1,5 @@
 from fastapi import HTTPException
-from app.functions.functionsV3 import (
+from app.functions.pathfinding import (
     calculate_path_and_time_with_realistic_timing,
     display_ids,
     analyze_graph

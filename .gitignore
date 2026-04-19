@@ -48,3 +48,4 @@ fastapi-backend/app/functions/container_pkl_files/all_metro_ids.pkl
 fastapi-backend/app/functions/container_pkl_files/rer_connections.pkl
 fastapi-backend/app/functions/container_pkl_files/RER_detailed_trips.pkl
 fastapi-backend/app/functions/yen_compiler/yen_wrapper.cp312-win_amd64.pyd
+fastapi-backend/database/transport_data.db
