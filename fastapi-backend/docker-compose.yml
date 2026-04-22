@@ -3,6 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    image: guide-me-backend:latest
     container_name: guide-me-backend
     ports:
       - "${GUIDE_ME_HOST_PORT}:${GUIDE_ME_CONTAINER_PORT}"

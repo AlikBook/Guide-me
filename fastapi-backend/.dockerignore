@@ -16,3 +16,14 @@ dist/
 .gitignore
 .DS_Store
 .env
+**/__pycache__/
+
+
+**/*_wrapper.c
+**/*.pyd
+**/*.so
+**/build/
+
+**/V2_text_files/
+**/container_pkl_files/*.pkl
+database/

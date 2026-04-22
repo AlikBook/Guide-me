@@ -16,7 +16,6 @@ RUN python -m pip install --upgrade pip \
     && pip install -r requirements.txt
 
 COPY app ./app
-COPY database ./database
 
 # Build the C extension during image build so startup does not depend on it.
 RUN cd /app/app/functions/yen_compiler \
