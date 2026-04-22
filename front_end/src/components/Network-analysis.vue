@@ -31,6 +31,7 @@
   <script setup>
   import { ref } from 'vue'
   import axios from 'axios'
+  import { apiUrl } from '../config/api'
   
   const showPopup = ref(false)
   const analysis = ref({})
@@ -43,7 +44,7 @@
     error.value = null
   
     try {
-      const response = await axios.get('http://localhost:8000/analyze_network') // à adapter si besoin
+      const response = await axios.get(apiUrl('/analyze_network'))
       analysis.value = response.data
     } catch (err) {
       error.value = "Impossible de charger les données du graphe"

@@ -400,6 +400,7 @@ import NetworkAnalysis from '../components/Network-analysis.vue'
 import CarbonImpact from '../components/CarbonImpact.vue'
 import TransitMap from '../components/TransitMap.vue'
 import { ref, onMounted, computed, watch } from "vue";
+import { apiUrl } from '../config/api';
 
 const data = ref(null);
 const station1 = ref(0);
@@ -421,13 +422,13 @@ const networkConnections = ref([]);
 onMounted(async () => {
   try {
     // Load station data
-    const stationResponse = await fetch("http://127.0.0.1:8000/station_ids");
+    const stationResponse = await fetch(apiUrl('/station_ids'));
     const stationResult = await stationResponse.json();
     data.value = stationResult;
     allStations.value = stationResult.stations;
 
     // Load network data for the map
-    const networkResponse = await fetch("http://127.0.0.1:8000/network_data");
+    const networkResponse = await fetch(apiUrl('/network_data'));
     const networkResult = await networkResponse.json();
     networkConnections.value = networkResult.stations;
     
@@ -798,7 +799,7 @@ function calculateJourneyTimes(currentTrip, departureTime) {
 }
 
 async function call_trip(value1, value2) {
-  const res = await fetch("http://127.0.0.1:8000/calculate_trip", {
+  const res = await fetch(apiUrl('/calculate_trip'), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

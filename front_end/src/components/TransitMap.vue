@@ -113,6 +113,7 @@
 <script>
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { apiUrl } from '../config/api';
 
 export default {
   name: 'TransitMap',
@@ -262,7 +263,7 @@ export default {
 
         
         // Load ONLY from station_coordinates endpoint (which uses STATION_COORDINATES variable)
-        const response = await fetch('http://127.0.0.1:8000/station_coordinates');
+        const response = await fetch(apiUrl('/station_coordinates'));
         
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
