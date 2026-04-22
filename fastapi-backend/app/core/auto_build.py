@@ -25,9 +25,9 @@ def check_yen_wrapper_available():
 def get_project_root():
     """Get the project root directory."""
     current_file = Path(__file__)
-    # Go up from fastapi-backend/app/core/auto_build.py to project root
-    # auto_build.py -> core -> app -> fastapi-backend -> project_root
-    return current_file.parent.parent.parent.parent
+    # app/core/auto_build.py -> backend root
+    # Works both on the host workspace and inside Docker (/app/app/core/...)
+    return current_file.parents[2]
 
 def clean_build_artifacts(yen_compiler_dir):
     """Clean previous build artifacts to ensure a fresh build."""
@@ -67,7 +67,7 @@ def auto_build_yen_wrapper():
     
     try:
         project_root = get_project_root()
-        yen_compiler_dir = project_root / "fastapi-backend" / "app" / "functions" / "yen_compiler"
+        yen_compiler_dir = project_root / "app" / "functions" / "yen_compiler"
         
         if not yen_compiler_dir.exists():
             print(f"ERROR: Yen compiler directory not found: {yen_compiler_dir}")
@@ -217,7 +217,7 @@ def print_manual_build_instructions():
     print(f"\nManual build steps:")
     print("   1. Install the requirements above")
     print("   2. Open a command prompt/terminal")
-    print("   3. Navigate to fastapi-backend/app/functions/yen_compiler")
+    print("   3. Navigate to app/functions/yen_compiler")
     print("   4. Run: python setup.py build_ext --inplace")
     
     print("="*60)

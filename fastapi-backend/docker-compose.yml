@@ -1,0 +1,15 @@
+services:
+  guide-me-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: guide-me-backend
+    ports:
+      - "${GUIDE_ME_HOST_PORT}:${GUIDE_ME_CONTAINER_PORT}"
+    environment:
+      - APP_ENV=${APP_ENV:-production}
+      - DATABASE_PATH=${DATABASE_PATH:-/app/database/transport_data.db}
+      - PORT=${GUIDE_ME_CONTAINER_PORT}
+    volumes:
+      - ./database:/app/database
+    restart: unless-stopped

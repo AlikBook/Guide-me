@@ -1,7 +1,6 @@
 # Master_camp_project
 
-Ceci est notre projet sur le réseau de métro et RER parisien. Il s’agit d’une application full stack avec un Front End développé en Vue.js et un Back End propulsé par FastAPI.
----
+## Ceci est notre projet sur le réseau de métro et RER parisien. Il s’agit d’une application full stack avec un Front End développé en Vue.js et un Back End propulsé par FastAPI.
 
 ## 🖥️ Front End
 
@@ -45,6 +44,31 @@ pip install -r requirements.txt
 python -m uvicorn app.main:app --reload
 ```
 
+### 🐳 Exécution avec Docker
+
+Depuis la racine du projet :
+
+```bash
+cd fastapi-backend
+docker compose up --build
+```
+
+L'API sera disponible sur `http://localhost:8000`.
+
+Pour arrêter :
+
+```bash
+docker compose down
+```
+
+Pour lancer en arrière-plan :
+
+```bash
+docker compose up -d --build
+```
+
+Le dossier `fastapi-backend/database` est monté en volume pour conserver la base SQLite entre les redémarrages.
+
 ---
 
 ## ⚙️ Pré-requis supplémentaires
@@ -58,4 +82,3 @@ fastapi-backend/app/V2_text_files
 ```
 
 Ces fichiers sont indispensables pour que le traitement des données de transport fonctionne correctement.
-
