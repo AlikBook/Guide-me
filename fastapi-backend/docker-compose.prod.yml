@@ -1,0 +1,22 @@
+services:
+  guide-me-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: guide-me-backend:latest
+    container_name: guide-me-backend
+    expose:
+      - "${GUIDE_ME_CONTAINER_PORT}"
+    environment:
+      - APP_ENV=${APP_ENV}
+      - DATABASE_PATH=${DATABASE_PATH}
+      - PORT=${GUIDE_ME_CONTAINER_PORT}
+    volumes:
+      - ./database:/app/database
+    networks:
+      - nginx-proxy-network
+    restart: unless-stopped
+
+networks:
+  nginx-proxy-network:
+    external: true
