@@ -1,3 +1,5 @@
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.data_loader import load_all_data  
@@ -5,9 +7,17 @@ from app.api.routes import router as api_router
 from app.core.auto_build import ensure_yen_wrapper
 app = FastAPI()
 
+frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
+
+origins = [
+    frontend_url,
+    "http://localhost:5173",  # Mantenemos esto para tus pruebas locales
+    "http://localhost:3000",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Or specify ["http://localhost:5173"] for Vite, etc.
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
