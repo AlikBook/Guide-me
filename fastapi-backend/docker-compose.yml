@@ -11,6 +11,7 @@ services:
       - APP_ENV=${APP_ENV:-production}
       - DATABASE_PATH=${DATABASE_PATH:-/app/database/transport_data.db}
       - PORT=${GUIDE_ME_CONTAINER_PORT}
+      - FRONTEND_URL=${FRONTEND_URL}
     volumes:
       - ./database:/app/database
     restart: unless-stopped
