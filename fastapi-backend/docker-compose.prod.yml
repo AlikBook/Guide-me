@@ -11,6 +11,7 @@ services:
       - APP_ENV=${APP_ENV}
       - DATABASE_PATH=${DATABASE_PATH}
       - PORT=${GUIDE_ME_CONTAINER_PORT}
+      - FRONTEND_URL=${FRONTEND_URL}
     volumes:
       - ./database:/app/database
     networks:
