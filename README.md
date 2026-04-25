@@ -1,6 +1,6 @@
-# Master Camp Project
+# Guide-ME Master Camp Project
 
-This project is a full-stack application focused on the Paris Metro:
+This project is a full-stack application focused on the Paris Metro. The goal of the app is to help the user find the shortest path between 2 destinations:
 
 - Frontend: Vue 3 + Vite
 - Backend: FastAPI
