@@ -1,4 +1,6 @@
-# Guide-ME Master Camp Project
+# Guide-ME : Master Camp Project
+
+> **🚀 Live Demo:** [guide-me-metro.vercel.app](https://guide-me-metro.vercel.app/)
 
 This project is a full-stack application focused on the Paris Metro. The goal of the app is to help the user find the shortest path between 2 destinations:
 
